@@ -1,0 +1,40 @@
+// リソース
+
+#define VERNUM				0,01,0,0
+#define VERSTR				"0.01"
+#define CREDIT2009			"Copyright (c) 2009 by opa"
+#define PGM					"wrapexec"
+#define DESCRIPTION			"Wrapper of Execute"
+
+1	VERSIONINFO
+FILEVERSION		VERNUM
+PRODUCTVERSION	VERNUM
+FILEFLAGSMASK	VS_FFI_FILEFLAGSMASK
+FILEFLAGS		0
+FILEOS			VOS_NT_WINDOWS32
+FILETYPE		VFT_APP
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "041104b0"												// 言語(日本語)
+		BEGIN
+			VALUE "CompanyName",		"http://www.ken16.net/" "\0"	// 会社名
+			VALUE "FileDescription",	DESCRIPTION "\0"				// 説明
+			VALUE "FileVersion",		VERSTR "\0"						// ファイル バージョン
+			VALUE "InternalName",		PGM "\0"						// 内部名
+			VALUE "LegalCopyright",		CREDIT2009 "\0"					// 著作権
+//			VALUE "OriginalFileName",	PGM ".exe" "\0"					// OriginalFileName
+//			VALUE "ProductName",		DESCRIPTION "\0"				// 製品名
+//			VALUE "ProductVersion",		VERSTR "\0"						// 製品バージョン
+//			VALUE "Comments",			DESCRIPTION "\0"				// コメント
+		END
+	END
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x411, 1200
+	END
+END
+
+2	ICON	"wrapexec1.ico"
+3	ICON	"wrapexec2.ico"
+
