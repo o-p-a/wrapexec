@@ -73,11 +73,6 @@ inline bool isnotwspace(wchar_t c)
 	return !iswspace(c);
 }
 
-inline sint system(const wstring &s)
-{
-	return _wsystem(s.c_str());
-}
-
 ////////////////////////////////////////////////////////////////////////
 
 class String : public wstring {
@@ -92,9 +87,11 @@ public:
 	String to_upper() const;
 	String to_wcout() const;
 	String singlequote() const;
-	String doublequote() const;
 	bool isdoublequote() const;
+	String doublequote() const;
 	String doublequote_del() const;
+	bool isbackslash() const;
+	String backslash() const;
 	String trim() const;
 	String subext(const String &ext) const;
 	String drivename() const;
@@ -147,16 +144,28 @@ String String::to_wcout() const
 	return r;
 }
 
-String String::singlequote() const
+//String String::singlequote() const
+//{
+//	Self
+//		r;
+//
+//	r.reserve(size() + 2);
+//	r.append(1, L'\'');
+//	r.append(*this);
+//	r.append(1, L'\'');
+//
+//	return r;
+//}
+
+bool String::isdoublequote() const
 {
-	Self
-		r;
+	// BUG:
+	//  単に先頭と最後の文字が " かどうかを判定しているだけなので、文字列の途中に " があった場合などを考慮していない。
 
-	r.append(1, L'\'');
-	r.append(*this);
-	r.append(1, L'\'');
+	if(size() >= 2 && *begin() == L'"' && *(end()-1) == L'"')
+		return true;
 
-	return r;
+	return false;
 }
 
 String String::doublequote() const
@@ -164,22 +173,16 @@ String String::doublequote() const
 	Self
 		r;
 
-	r.append(1, L'"');
-	r.append(*this);
-	r.append(1, L'"');
+	if(isdoublequote()){
+		r.append(*this);
+	}else{
+		r.reserve(size() + 2);
+		r.append(1, L'"');
+		r.append(*this);
+		r.append(1, L'"');
+	}
 
 	return r;
-}
-
-bool String::isdoublequote() const
-{
-	// BUG:
-	//  単に先頭と最後の文字が " かどうかを判定しているだけなので、文字列の途中に " があった場合などを考慮していない。
-
-	if(size() >= 2 && (*this)[0] == L'"' && (*this)[size()-1] == L'"')
-		return true;
-
-	return false;
 }
 
 String String::doublequote_del() const
@@ -191,6 +194,22 @@ String String::doublequote_del() const
 		return String(begin() + 1, end() - 1);
 	else
 		return String(*this);
+}
+
+bool String::isbackslash() const
+{
+	return size() > 0 && *(end()-1) == L'\\';
+}
+
+String String::backslash() const
+{
+	String
+		r(*this);
+
+	if(!isbackslash())
+		r.append(1, L'\\');
+
+	return r;
 }
 
 String String::trim() const
@@ -583,7 +602,7 @@ String exstring::expand() const
 	ExpandValues::const_iterator
 		f;
 	wchar_t
-		c, c1, c2;
+		c, c1, c2, cc;
 
 	for(i = begin() ; i != end() ; ++i){
 		c = *i;
@@ -595,7 +614,16 @@ String exstring::expand() const
 			}
 
 			c1 = *i;
-			if(c1 == L'{'){
+			if(c1 == L'(' || c1 == L'{' || c1 == L'['){
+				if(c1 == L'(')
+					cc = L')';
+				else if(c1 == L'{')
+					cc = L'}';
+				else if(c1 == L'[')
+					cc = L']';
+				else
+					cc = L'\0';
+
 				++i;
 				if(i == end()){
 					r.append(1, c);
@@ -606,13 +634,13 @@ String exstring::expand() const
 				expand_var_name.erase();
 				while(1){
 					c2 = *i;
-					if(c2 == L'}'){
+					if(c2 == cc){
 						if(expand_var_name.empty()){
-							wcerr << PGM_WARN "variable name not presented: ${}" << endl;
+							wcerr << PGM_WARN "variable name not presented" << endl;
 						}else if((f=ev().find_i(expand_var_name)) != ev().end()){
 							r.append(f->second);
 						}else{
-							wcerr << PGM_WARN "variable not defined: ${" << expand_var_name.to_wcout() << '}' << endl;
+							wcerr << PGM_WARN "variable not defined: " << expand_var_name.to_wcout() << endl;
 							r.append(1, c);
 							r.append(1, c1);
 							r.append(expand_var_name);
@@ -662,8 +690,10 @@ private:
 		_gui,
 		_maximize,
 		_minimize,
-		_export_env;
+		_import_env_all,
+		_export_env_all;
 
+	static sint system(const String &s);
 	static bool executable(const String &cmd);
 
 public:
@@ -685,8 +715,10 @@ public:
 	bool maximize(bool v)						{ return _maximize = v; }
 	bool minimize() const						{ return _minimize; }
 	bool minimize(bool v)						{ return _minimize = v; }
-	bool export_env() const						{ return _export_env; }
-	bool export_env(bool v)						{ return _export_env = v; }
+	bool import_env_all() const					{ return _import_env_all; }
+	bool import_env_all(bool v)					{ return _import_env_all = v; }
+	bool export_env_all() const					{ return _export_env_all; }
+	bool export_env_all(bool v)					{ return _export_env_all = v; }
 
 	sint execute();
 	void verbose_out(const String &s);
@@ -711,7 +743,39 @@ ExecuteInfo::ExecuteInfo()
 	_gui			= false;
 	_maximize		= false;
 	_minimize		= false;
-	_export_env		= false;
+	_import_env_all	= false;
+	_export_env_all	= false;
+}
+
+sint ExecuteInfo::system(const String &cmd)
+{
+	String
+		r;
+	bool
+		in_quote = false;
+
+	r.reserve(cmd.size());
+
+	for(String::const_iterator i = cmd.begin() ; i != cmd.end() ; ++i ){
+		wchar_t
+			c = *i;
+
+		if(!in_quote){
+			if(c == L'^' || c == L'<' || c == L'>' || c == L'|' || c == L'&' || c == L'(' || c == L')' || c == L'@'){
+				r.append(1, L'^');
+				r.append(1, c);
+			}else{
+				r.append(1, c);
+			}
+		}else{
+			r.append(1, c);
+		}
+
+		if(c == L'"')
+			in_quote = in_quote ? false : true;
+	}
+
+	return _wsystem(r.c_str());
 }
 
 bool ExecuteInfo::executable(const String &cmd)
@@ -752,8 +816,8 @@ sint ExecuteInfo::execute()
 		return 1;
 	}
 
-	if(export_env()){
-		verbose_out(L"export environment variable");
+	if(export_env_all()){
+		verbose_out(L"export all variable to environment");
 		expandvalues.export_env();
 	}
 
@@ -799,17 +863,17 @@ sint ExecuteInfo::execute()
 		}
 	}
 
-	if(export_env()){
+	if(export_env_all()){
 		verbose_out(L"clear exported environment variable");
 		expandvalues.export_env_clear();
 	}
 
 	if(!done){
-#if 1
+#if 0
 		wcerr << "command not found" << endl;
 		rcode = 1;
 #else
-		rcode = system(exstring(L"${MY_BASENAME}").expand().singlequote());
+		rcode = system(exstring(L"${MY_BASENAME}\"\b").expand());
 #endif
 		error = true;
 		return 1;
@@ -828,24 +892,22 @@ void ExecuteInfo::verbose_out(const String &s)
 
 String get_given_option(const String &cmd)
 {
-	String::const_iterator
-		p;
 	bool
 		in_quote = false;
 
-	for(p = cmd.begin() ; p != cmd.end() ; ++p){
+	for(String::const_iterator i = cmd.begin() ; i != cmd.end() ; ++i){
 		wchar_t
-			c = *p;
+			c = *i;
 
 		if(!in_quote)
 			if(iswspace(c))
-				break;
+				return String(i, cmd.end());
 
 		if(c == L'"')
 			in_quote = in_quote ? false : true;
 	}
 
-	return String(p, cmd.end());
+	return String();
 }
 
 void do_help()
@@ -868,7 +930,8 @@ void do_help()
 	wcout << " gui" << endl;
 	wcout << " maximize" << endl;
 	wcout << " minimize" << endl;
-	wcout << " export_env" << endl;
+//	wcout << " import_env_all" << endl;
+	wcout << " export_env_all" << endl;
 	wcout << endl;
 
 	wcout << "available variables:" << endl;
@@ -923,24 +986,24 @@ sint setup_expandvalues(String exename, String given_option)
 	s.assign_from_env(L"SystemDrive");			// C:
 	ev.add(L"SystemDrive", s);
 	s.assign_from_env(L"SystemRoot");			// C:\WINDOWS
-	ev.add(L"SystemRoot", s);
+	ev.add(L"SystemRoot", s.backslash());
 	s.assign_from_env(L"ProgramFiles");			// C:\Program Files
-	ev.add(L"ProgramFiles", s);
+	ev.add(L"ProgramFiles", s.backslash());
 	s.assign_from_env(L"ALLUSERSPROFILE");		// C:\Documents and Settings\All Users
-	ev.add(L"ALLUSERSPROFILE", s);
+	ev.add(L"ALLUSERSPROFILE", s.backslash());
 
 	s.assign_from_env(L"USERNAME");				// someone
 	ev.add(L"USERNAME", s);
 	s.assign_from_env(L"HOMEDRIVE");			// C:
 	ev.add(L"HOMEDRIVE", s);
 //	s.assign_from_env(L"HOMEPATH");				// \Documents and Settings\someone
-//	ev.add(L"HOMEPATH", s);
+//	ev.add(L"HOMEPATH", s.backslash());
 	s.assign_from_env(L"USERPROFILE");			// C:\Documents and Settings\someone
-	ev.add(L"USERPROFILE", s);
+	ev.add(L"USERPROFILE", s.backslash());
 	s.assign_from_env(L"APPDATA");				// C:\Documents and Settings\someone\Application Data
-	ev.add(L"APPDATA", s);
+	ev.add(L"APPDATA", s.backslash());
 	s.assign_from_env(L"TMP");					// C:\DOCUME~1\SOMEONE\LOCALS~1\Temp
-	ev.add(L"TMP", s);
+	ev.add(L"TMP", s.backslash());
 
 	return 0;
 }
@@ -1031,9 +1094,12 @@ sint load_inifile(String exename)
 						execinfo_default.verbose_out(L"ini option: minimize");
 						execinfo_default.minimize(ifs->get_value_bool(aline));
 						execinfo_default.maximize(false);
-					}else if(ifs->is_key(aline, L"EXPORT_ENV")){
-						execinfo_default.verbose_out(L"ini option: export_env");
-						execinfo_default.export_env(ifs->get_value_bool(aline));
+					}else if(ifs->is_key(aline, L"IMPORT_ENV_ALL")){
+						execinfo_default.verbose_out(L"ini option: import_env_all");
+						execinfo_default.import_env_all(ifs->get_value_bool(aline));
+					}else if(ifs->is_key(aline, L"EXPORT_ENV_ALL")){
+						execinfo_default.verbose_out(L"ini option: export_env_all");
+						execinfo_default.export_env_all(ifs->get_value_bool(aline));
 					}else{
 						wcerr << PGM_ERR "invalid option: " << aline.to_wcout() << endl;
 						error = true;
