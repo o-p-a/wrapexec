@@ -16,6 +16,8 @@
 
 #include <windows.h>
 #include <winnls.h>
+#include <shlobj.h>
+#include <lmcons.h>
 
 #define PGM					"wrapexec"
 #define PGM_DEBUG			PGM ": "
@@ -326,7 +328,7 @@ public:
 
 ExpandValues::mapped_type ExpandValues::add(const ExpandValues::key_type &name, const ExpandValues::mapped_type &val)
 {
-	erase(name); // nameも更新するため、一旦消す
+	erase(name); // nameも更新するために、一旦消す
 
 	return operator[](name) = val;
 }
@@ -351,8 +353,6 @@ class IniFileStream : private ifstream {
 private:
 	String _inifilename;
 
-	static String filename_to_ini(const String &exename);
-
 	IniFileStream()						{}
 	IniFileStream(int fd)				: Super(fd) {}
 
@@ -361,6 +361,7 @@ public:
 	Super::eof;
 	Super::close;
 
+	static String ininame(const String &exename);
 	static IniFileStream *new_with_exename(const String &exename);
 
 	const String &inifilename() const	{ return _inifilename; }
@@ -374,7 +375,7 @@ public:
 	bool getline(String &s);
 };
 
-String IniFileStream::filename_to_ini(const String &exename)
+String IniFileStream::ininame(const String &exename)
 {
 	return exename.subext(L".ini");
 }
@@ -384,7 +385,7 @@ IniFileStream *IniFileStream::new_with_exename(const String &exename)
 	Self
 		*r;
 	String
-		ini = filename_to_ini(exename);
+		ini = ininame(exename);
 	sint
 		fd = _wopen(ini.c_str(), O_RDONLY + O_TEXT);
 
@@ -883,7 +884,7 @@ sint ExecuteInfo::execute()
 		if(cl.size() > 0){
 			verbose_out(L"execute: " + cl);
 
-			rcode = system(cl);
+			rcode = system(L'"' + cl + L'"');
 			done = true;
 
 			verbose_out(L"done: " + to_String(rcode));
@@ -927,6 +928,9 @@ public:
 	static String GetClipboardText();
 	static String GetCommandLine()		{ return ::GetCommandLine(); }
 	static String GetComputerName();
+	static String GetTempPath();
+	static String GetUserName();
+	static String SHGetSpecialFolder(sint nFolder);
 };
 
 String WindowsAPI::GetClipboardText()
@@ -968,6 +972,55 @@ String WindowsAPI::GetComputerName()
 	return String(buf, buf + size);
 }
 
+String WindowsAPI::GetTempPath()
+{
+	DWORD
+		size = ::GetTempPath(0, NULL);
+	wchar_t
+		*buf = new wchar_t[size];
+
+	::GetTempPath(size, buf);
+
+	String
+		r(buf);
+
+	delete [] buf;
+
+	return r;
+}
+
+String WindowsAPI::GetUserName()
+{
+	wchar_t
+		buf[UNLEN + 1];
+	DWORD
+		size = sizeof buf;
+
+	if(::GetUserName(buf, &size) == 0)
+		return String();
+
+	return String(buf, buf + size - 1);
+}
+
+String WindowsAPI::SHGetSpecialFolder(sint nFolder)
+{
+	wchar_t
+		buf[MAX_PATH];
+	LPITEMIDLIST
+		pidl;
+	IMalloc
+		*m;
+
+	SHGetMalloc(&m);
+	if(SHGetSpecialFolderLocation(0, nFolder, &pidl) == 0){
+		SHGetPathFromIDList(pidl, buf);
+		m->Free(pidl);
+	}
+	m->Release();
+
+	return String(buf);
+}
+
 ////////////////////////////////////////////////////////////////////////
 
 String get_given_option(const String &cmd)
@@ -998,7 +1051,8 @@ void do_help()
 	wcout << "available sections:" << endl;
 	wcout << " [option]" << endl;
 	wcout << " [exec]" << endl;
-//	wcout << " [multi]" << endl;
+	wcout << " [multi]" << endl;
+	wcout << " [eof]" << endl;
 	wcout << endl;
 
 	wcout << "available options:" << endl;
@@ -1020,51 +1074,57 @@ void do_help()
 		wcout << " ${" << i->first << '}' << endl;
 }
 
-sint setup_expandvalues(ExecuteInfo &ei,String exename, String given_option)
+sint setup_expandvalues(ExecuteInfo &ei,String exename)
 {
 	String
 		s;
 
-	ei.add_ev(L"ARG", given_option);
+	ei.add_ev(L"ARG", get_given_option(WindowsAPI::GetCommandLine()));
 	ei.add_ev(L"CLIPBOARD", WindowsAPI::GetClipboardText());
 
 	s = exename;
-	ei.add_ev(L"MY_FULLNAME", s);
+	ei.add_ev(L"MY_EXENAME", s);
+	ei.add_ev(L"MY_ININAME", IniFileStream::ininame(s));
 	ei.add_ev(L"MY_BASENAME", s.basename());
 	ei.add_ev(L"MY_DRIVE", s.drivename());
 	ei.add_ev(L"MY_DIR", s.dirname());
 	ei.add_ev(L"MY", s.dirname());
 
-	s = WindowsAPI::GetComputerName();			// LYSINE
+	s = WindowsAPI::GetComputerName();										// SOMEONESPC
 	ei.add_ev(L"SYS_NAME", s);
-	s.assign_from_env(L"SystemRoot");			// C:\WINDOWS\SYSTEM32
-	ei.add_ev(L"SYS_ROOT", s.backslash());		// TODO: "system32" をつける
+	s = WindowsAPI::SHGetSpecialFolder(CSIDL_WINDOWS);						// C:\WINDOWS
+	ei.add_ev(L"SYS_ROOT", s.backslash());
+	s = WindowsAPI::SHGetSpecialFolder(CSIDL_SYSTEM);						// C:\WINDOWS\system32
 	ei.add_ev(L"SYS_DRIVE", s.drivename());
 	ei.add_ev(L"SYS_DIR", s.backslash());
 	ei.add_ev(L"SYS", s.backslash());
 
-	s.assign_from_env(L"USERNAME");				// someone
+	s = WindowsAPI::GetUserName();											// someone
 	ei.add_ev(L"USER_NAME", s);
-	s.assign_from_env(L"USERPROFILE");			// C:\Documents and Settings\someone
+	s = WindowsAPI::SHGetSpecialFolder(CSIDL_PROFILE);						// C:\Documents and Settings\someone
 	ei.add_ev(L"USER_DRIVE", s.drivename());
 	ei.add_ev(L"USER_DIR", s.backslash());
 	ei.add_ev(L"USER", s.backslash());
-//マイドキュメント USER_DOC
-//デスクトップ USER_DESKTOP
+	s = WindowsAPI::SHGetSpecialFolder(CSIDL_PERSONAL);						// C:\Documents and Settings\someone\My Documents
+	ei.add_ev(L"USER_DOC", s.backslash());
+	s = WindowsAPI::SHGetSpecialFolder(CSIDL_DESKTOPDIRECTORY);				// C:\Documents and Settings\someone\デスクトップ
+	ei.add_ev(L"USER_DESKTOP", s.backslash());
 
-	s.assign_from_env(L"ALLUSERSPROFILE");		// C:\Documents and Settings\All Users
+	s = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DOCUMENTS).dirname();	// C:\Documents and Settings\All Users\Documents
 	ei.add_ev(L"ALL_USER_DRIVE", s.drivename());
 	ei.add_ev(L"ALL_USER_DIR", s.backslash());
 	ei.add_ev(L"ALL_USER", s.backslash());
-//共有ドキュメント ALL_USER_DOC
-//デスクトップ ALL_USER_DESKTOP
+	s = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DOCUMENTS);				// C:\Documents and Settings\All Users\Documents
+	ei.add_ev(L"ALL_USER_DOC", s.backslash());
+	s = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DESKTOPDIRECTORY);		// C:\Documents and Settings\All Users\デスクトップ
+	ei.add_ev(L"ALL_USER_DESKTOP", s.backslash());
 
-	s.assign_from_env(L"ProgramFiles");			// C:\Program Files
+	s = WindowsAPI::SHGetSpecialFolder(CSIDL_PROGRAM_FILES);				// C:\Program Files
 	ei.add_ev(L"PROGRAM_DRIVE", s.drivename());
 	ei.add_ev(L"PROGRAM_DIR", s.backslash());
 	ei.add_ev(L"PROGRAM", s.backslash());
 
-	s.assign_from_env(L"TMP");					// C:\DOCUME~1\SOMEONE\LOCALS~1\Temp
+	s = WindowsAPI::GetTempPath();											// C:\DOCUME~1\SOMEONE\LOCALS~1\Temp
 	ei.add_ev(L"TMP_DRIVE", s.drivename());
 	ei.add_ev(L"TMP_DIR", s.backslash());
 	ei.add_ev(L"TMP", s.backslash());
@@ -1079,6 +1139,7 @@ sint load_inifile(String exename)
 		SECTION_OPTION,
 		SECTION_EXEC,
 		SECTION_MULTIEXEC,
+		SECTION_EOF,
 	};
 
 	execinfo_default.verbose_out(L"--- ini file read ---");
@@ -1122,6 +1183,9 @@ sint load_inifile(String exename)
 					section = SECTION_MULTIEXEC;
 					// TODO: 初期処理で作られたexecinfolist[0]を取り除く
 					execinfolist.push_back(execinfo_default);
+				}else if(ifs->is_section(aline, L"EOF")){
+					execinfo_default.verbose_out(L"ini section: eof");
+					break;
 				}else{
 					wcerr << PGM_ERR "invalid section name: " << aline.to_wcout() << endl;
 					section = SECTION_NONE;
@@ -1195,14 +1259,13 @@ sint load_inifile(String exename)
 sint wmain(sint /*ac*/, wchar_t *av[])
 {
 	String
-		exename = av[0],
-		given_option = get_given_option(WindowsAPI::GetCommandLine());
+		exename = av[0];
 
 	locale::global(locale(""));
 //	wcout.imbue(locale(""));
 //	wcerr.imbue(locale(""));
 
-	setup_expandvalues(execinfo_default, exename, given_option);
+	setup_expandvalues(execinfo_default, exename);
 
 	load_inifile(exename);
 

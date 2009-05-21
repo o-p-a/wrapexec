@@ -120,8 +120,15 @@
 
 	[multi] セクション
 
+	[eof] セクション
 
 
+'#' または ';' で始まる行はコメントです。
+行中の '#' ';' はコメントの開始文字としては扱われないことに注意して下さい。つまり:
+
+# この行はコメントです。
+  ;  行頭のスペースは無視されるので、この行もコメントです。
+gui = true # これはコメントとは解釈されません。
 
 
 
@@ -130,13 +137,13 @@
 	help
 	arg
 	chdir
+	import_env
+	export_env
 	verbose
 	internal_cmd
 	gui
 	maximize
 	minimize
-	import_env
-	export_env
 
 
 
