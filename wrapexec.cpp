@@ -899,7 +899,7 @@ sint ExecuteInfo::execute()
 
 		if(internal()){
 			verbose_out(L"executable: " + cmd + L" (internal)");
-			cl = cmd + arge;
+			cl += cmd + arge;
 		}else if(executable(cmd)){
 			verbose_out(L"executable: " + cmd);
 			if(gui()){
@@ -1117,25 +1117,25 @@ void do_help()
 		" MY_EXENAME\n"
 		" MY_ININAME\n"
 		" MY_BASENAME\n"
-		" MY_DRIVE\n"
 		" MY_DIR (MY)\n"
+		" MY_DRIVE\n"
 		" SYS_NAME\n"
 		" SYS_ROOT\n"
-		" SYS_DRIVE\n"
 		" SYS_DIR (SYS)\n"
+		" SYS_DRIVE\n"
 		" USER_NAME\n"
-		" USER_DRIVE\n"
 		" USER_DIR (USER)\n"
+		" USER_DRIVE\n"
 		" USER_DOC\n"
 		" USER_DESKTOP\n"
-		" ALL_USER_DRIVE\n"
 		" ALL_USER_DIR (ALL_USER)\n"
+		" ALL_USER_DRIVE\n"
 		" ALL_USER_DOC\n"
 		" ALL_USER_DESKTOP\n"
-		" PROGRAM_DRIVE\n"
 		" PROGRAM_DIR (PROGRAM)\n"
-		" TMP_DRIVE\n"
+		" PROGRAM_DRIVE\n"
 		" TMP_DIR (TMP)\n"
+		" TMP_DRIVE\n"
 		""
 	);
 }
