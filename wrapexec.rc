@@ -1,7 +1,7 @@
 // ÉäÉ\Å[ÉX
 
-#define VERNUM				0,01,0,0
-#define VERSTR				"0.01"
+#define VERNUM				1,00,0,0
+#define VERSTR				"1.00"
 #define CREDIT2009			"Copyright (c) 2009 by opa"
 #define PGM					"wrapexec"
 #define DESCRIPTION			"Wrapper of Execute"
