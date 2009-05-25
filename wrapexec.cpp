@@ -565,8 +565,6 @@ bool IniFileStream::getline(String &s)
 
 	string
 		tmp;
-	int
-		c;
 
 	tmp.reserve(200);
 	for(int c ; (c = fgetc(_fp)) != EOF ; tmp += c)
@@ -1007,7 +1005,7 @@ String WindowsAPI::GetComputerName()
 	if(::GetComputerName(buf, &size) == 0)
 		return String();
 
-	return String(buf, buf + size);
+	return String(String::iterator(buf), String::iterator(buf + size));
 }
 
 String WindowsAPI::GetTempPath()
@@ -1036,7 +1034,7 @@ String WindowsAPI::GetUserName()
 	if(::GetUserName(buf, &size) == 0)
 		return String();
 
-	return String(buf, buf + size - 1);
+	return String(String::iterator(buf), String::iterator(buf + size - 1));
 }
 
 String WindowsAPI::SHGetSpecialFolder(sint nFolder)
@@ -1311,14 +1309,12 @@ void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfoList &execinfolist, 
 	ifs.close();
 }
 
-sint wmain(sint /*ac*/, wchar_t *av[])
+void wrapexec_main(String exename)
 {
 	ExecuteInfo
 		execinfo_default;
 	ExecuteInfoList
 		execinfolist;
-	String
-		exename(av[0]);
 
 	setup_expandvalues(execinfo_default, exename);
 
@@ -1326,6 +1322,11 @@ sint wmain(sint /*ac*/, wchar_t *av[])
 
 	for(ExecuteInfoList::iterator i = execinfolist.begin() ; !error && i != execinfolist.end() ; ++i)
 		i->execute();
+}
+
+sint wmain(sint /*ac*/, wchar_t *av[])
+{
+	wrapexec_main(av[0]);
 
 	return rcode;
 }

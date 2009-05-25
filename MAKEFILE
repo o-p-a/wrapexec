@@ -1,5 +1,5 @@
 #
-# makefile for wrapexec
+# makefile for wrapexec, Borland MAKE
 #
 
 # -5      Pentium Instructions
@@ -10,26 +10,19 @@
 # -M      Generate link map
 
 CFLAGS = -5 -C -O1 -d -WU -M
+RM = del
 
-all: wrapexec.exe gv.exe pwd.exe
+all: wrapexec.exe
 
-wrapexec.exe: wrapexec.cpp wrapexec.rc
+wrapexec.exe: wrapexec.cpp wrapexec.res
 	$(CC) $(CFLAGS) wrapexec.cpp
-	brc32 wrapexec.rc
+	$(RC) wrapexec.rc
 	upx -q -q --lzma --compress-icons=0 $@
 
-gv.exe: wrapexec.exe
-	copy /y $** $@
-
-pwd.exe: wrapexec.exe
-	copy /y $** $@
-
 clean:
-	if exist wrapexec.obj del wrapexec.obj
-	if exist wrapexec.res del wrapexec.res
-	if exist wrapexec.tds del wrapexec.tds
-	if exist wrapexec.map del wrapexec.map
-	if exist wrapexec.exe del wrapexec.exe
-	if exist gv.exe del gv.exe
-	if exist pwd.exe del pwd.exe
+	$(RM) wrapexec.obj
+	$(RM) wrapexec.res
+	$(RM) wrapexec.tds
+	$(RM) wrapexec.map
+	$(RM) wrapexec.exe
 
