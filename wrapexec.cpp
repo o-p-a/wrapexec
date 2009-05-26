@@ -1324,9 +1324,27 @@ void wrapexec_main(String exename)
 		i->execute();
 }
 
-sint wmain(sint /*ac*/, wchar_t *av[])
+#ifdef __MINGW32__
+
+sint main(sint ac, char *[])
+{
+	wchar_t
+		**av = ::CommandLineToArgvW(::GetCommandLine(), &ac);
+
+	wrapexec_main(av[0]);
+
+	GlobalFree(av);
+
+	return rcode;
+}
+
+#else // __MINGW32__
+
+sint wmain(sint, wchar_t *av[])
 {
 	wrapexec_main(av[0]);
 
 	return rcode;
 }
+
+#endif // __MINGW32__

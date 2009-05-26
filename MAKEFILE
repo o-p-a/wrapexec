@@ -9,20 +9,22 @@
 # -Wx     Create Windows app
 # -M      Generate link map
 
+PRJ = wrapexec
+
 CFLAGS = -5 -C -O1 -d -WU -M
 RM = del
 
-all: wrapexec.exe
+all: $(PRJ).exe
 
-wrapexec.exe: wrapexec.cpp wrapexec.res
-	$(CC) $(CFLAGS) wrapexec.cpp
-	$(RC) wrapexec.rc
+$(PRJ).exe: $(PRJ).cpp $(PRJ).rc $(PRJ)1.ico $(PRJ)2.ico
+	$(CC) $(CFLAGS) $(PRJ).cpp
+	brc32 $(PRJ).rc
 	upx -q -q --lzma --compress-icons=0 $@
 
 clean:
-	$(RM) wrapexec.obj
-	$(RM) wrapexec.res
-	$(RM) wrapexec.tds
-	$(RM) wrapexec.map
-	$(RM) wrapexec.exe
+	$(RM) $(PRJ).obj
+	$(RM) $(PRJ).res
+	$(RM) $(PRJ).tds
+	$(RM) $(PRJ).map
+	$(RM) $(PRJ).exe
 
