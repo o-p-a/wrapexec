@@ -1,0 +1,27 @@
+#
+# makefile for wrapexec, GNU Make
+#
+
+PRJ = wrapexec
+
+CC = c++
+CFLAGS = -DUNICODE -D_UNICODE -Os -s
+RC = windres
+RM = cmd /c del
+
+.PHONY: all clean
+
+all: $(PRJ).exe
+
+$(PRJ).exe: $(PRJ).cpp $(PRJ).res
+	$(CC) $(CFLAGS) $(PRJ).cpp $(PRJ).res -o $@
+	upx -q -q --lzma --compress-icons=0 $@
+
+$(PRJ).res: $(PRJ).rc $(PRJ)1.ico $(PRJ)2.ico
+	$(RC) $(PRJ).rc -O coff $@
+
+clean:
+	$(RM) $(PRJ).o
+	$(RM) $(PRJ).res
+	$(RM) $(PRJ).exe
+
