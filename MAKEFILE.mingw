@@ -4,7 +4,6 @@
 
 PRJ = wrapexec
 
-CC = c++
 CFLAGS = -DUNICODE -D_UNICODE -Os -s
 RC = windres
 RM = cmd /c del
@@ -14,7 +13,7 @@ RM = cmd /c del
 all: $(PRJ).exe
 
 $(PRJ).exe: $(PRJ).cpp $(PRJ).res
-	$(CC) $(CFLAGS) $(PRJ).cpp $(PRJ).res -o $@
+	$(CXX) $(CFLAGS) $(PRJ).cpp $(PRJ).res -o $@
 	upx -q -q --lzma --compress-icons=0 $@
 
 $(PRJ).res: $(PRJ).rc $(PRJ)1.ico $(PRJ)2.ico
