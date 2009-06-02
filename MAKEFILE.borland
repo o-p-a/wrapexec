@@ -14,12 +14,17 @@ PRJ = wrapexec
 CFLAGS = -5 -C -O1 -d -WU -M
 RM = del
 
-all: $(PRJ).exe
+all: $(PRJ).exe $(PRJ)w.exe
 
 $(PRJ).exe: $(PRJ).cpp $(PRJ).rc $(PRJ)1.ico $(PRJ)2.ico
-	$(CC) $(CFLAGS) $(PRJ).cpp
+	$(CC) $(CFLAGS) -WC $(PRJ).cpp
 	brc32 $(PRJ).rc
-	upx -q -q --lzma --compress-icons=0 $@
+	upx -q -q --lzma --compress-icons=0 $(PRJ).exe
+
+$(PRJ)w.exe: $(PRJ).cpp $(PRJ).rc $(PRJ)1.ico $(PRJ)2.ico
+	$(CC) $(CFLAGS) -W -e$(PRJ)w.exe $(PRJ).cpp
+	brc32 $(PRJ).rc -fe$(PRJ)w.exe
+	upx -q -q --lzma --compress-icons=0 $(PRJ)w.exe
 
 clean:
 	$(RM) $(PRJ).obj
@@ -27,4 +32,7 @@ clean:
 	$(RM) $(PRJ).tds
 	$(RM) $(PRJ).map
 	$(RM) $(PRJ).exe
+	$(RM) $(PRJ)w.tds
+	$(RM) $(PRJ)w.map
+	$(RM) $(PRJ)w.exe
 
