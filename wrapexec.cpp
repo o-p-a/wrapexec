@@ -5,7 +5,7 @@
 */
 
 #include <string>
-#include <vector>
+#include <list>
 #include <map>
 #include <algorithm>
 #include <cstdio>
@@ -78,31 +78,31 @@ class String : public wstring {
 
 public:
 	String()									{}
-	String(const wstring &s)					: Super(s) {}
+	String(const Super &s)						: Super(s) {}
 	String(const wchar_t *s)					: Super(s) {}
 	String(const_iterator b, const_iterator e)	: Super(b, e) {}
 
 	string to_ansi() const;
-	String to_upper() const;
+	Self to_upper() const;
+	Self trim() const;
 	bool isdoublequote() const;
-	String doublequote() const;
-	String doublequote_del() const;
+	Self doublequote() const;
+	Self doublequote_del() const;
 	bool isbackslash() const;
-	String backslash() const;
-	String trim() const;
-	String subext(const String &ext) const;
-	String drivename() const;
-	String dirname() const;
-	String basename() const;
+	Self backslash() const;
+	Self subext(const Self &ext) const;
+	Self drivename() const;
+	Self dirname() const;
+	Self basename() const;
 
-	String &operator=(const wchar_t *s)			{ assign(s); return *this; }
-	String &operator=(const String &s)			{ assign(s); return *this; }
-	String &assign_from_ansi(const char *s);
-	String &assign_from_ansi(const string &s)	{ return assign_from_ansi(s.c_str()); }
-	String &assign_from_utf8(const char *s);
-	String &assign_from_utf8(const string &s)	{ return assign_from_utf8(s.c_str()); }
-	String &assign_from_env(const String &name);
-	String &printf(String format, ...);
+	Self &operator=(const Self &s)				{ assign(s); return *this; }
+	Self &operator=(const wchar_t *s)			{ assign(s); return *this; }
+	Self &assign_from_ansi(const char *s);
+	Self &assign_from_ansi(const string &s)		{ return assign_from_ansi(s.c_str()); }
+	Self &assign_from_utf8(const char *s);
+	Self &assign_from_utf8(const string &s)		{ return assign_from_utf8(s.c_str()); }
+	Self &assign_from_env(const Self &name);
+	Self &printf(Self format, ...);
 };
 
 string String::to_ansi() const
@@ -134,6 +134,21 @@ String String::to_upper() const
 		*i = towupper(*i);
 
 	return r;
+}
+
+String String::trim() const
+{
+	const_iterator
+		b = begin(),
+		e = end();
+
+	b = find_if(b, e, isnotwspace);
+	e = rfind_if(b, e, isnotwspace);
+
+	if(e != end() && isnotwspace(*e))
+		++e;
+
+	return Self(b, e);
 }
 
 bool String::isdoublequote() const
@@ -186,21 +201,6 @@ String String::backslash() const
 		r.append(1, L'\\');
 
 	return r;
-}
-
-String String::trim() const
-{
-	const_iterator
-		b = begin(),
-		e = end();
-
-	b = find_if(b, e, isnotwspace);
-	e = rfind_if(b, e, isnotwspace);
-
-	if(e != end() && isnotwspace(*e))
-		++e;
-
-	return Self(b, e);
 }
 
 String String::subext(const String &ext) const
@@ -319,38 +319,70 @@ String &String::printf(String format, ...) // vaを使う必要上、Stringを値渡しする
 	return *this;
 }
 
-sint putcout(const char *s)
+////////////////////////////////////////////////////////////////////////
+
+void _putcxxx(const char *s, FILE *fp)
 {
-	return fputs(s, stdout), fputc('\n', stdout);
+	fputs(s, fp);
+	fputc('\n', fp);
 }
 
-sint putcerr(const char *s)
+inline void putcout(const char *s)
 {
-	return fputs(s, stderr), fputc('\n', stderr);
+	_putcxxx(s, stdout);
 }
 
-sint putcout(const String &s)
+inline void putcerr(const char *s)
 {
-	return putcout(s.to_ansi().c_str());
+	_putcxxx(s, stderr);
 }
 
-sint putcerr(const String &s)
+void _putcxxx(const String &s, FILE *fp)
 {
-	return putcerr(s.to_ansi().c_str());
+	_putcxxx(s.to_ansi().c_str(), fp);
 }
 
-sint putcout(const char *s1, const String &s2)
+inline void putcout(const String &s)
 {
-	String s = String().assign_from_ansi(s1) + s2;
-
-	return putcout(s);
+	_putcxxx(s, stdout);
 }
 
-sint putcerr(const char *s1, const String &s2)
+inline void putcerr(const String &s)
 {
-	String s = String().assign_from_ansi(s1) + s2;
+	_putcxxx(s, stderr);
+}
 
-	return putcerr(s);
+void _putcxxx(const char *s1, const String &s2, FILE *fp)
+{
+	_putcxxx(String().assign_from_ansi(s1) + s2, fp);
+}
+
+inline void putcout(const char *s1, const String &s2)
+{
+	_putcxxx(s1, s2, stdout);
+}
+
+inline void putcerr(const char *s1, const String &s2)
+{
+	_putcxxx(s1, s2, stderr);
+}
+
+bool readable(const String &filename)
+{
+	FILE
+		*fp = _wfopen(filename.c_str(), L"rb");
+
+	if(fp != NULL){
+		fclose(fp);
+		return true;
+	}
+
+	return false;
+}
+
+inline bool executable(const String &filename)
+{
+	return readable(filename);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -363,8 +395,6 @@ public:
 	typedef binary_function<String, String, bool>::result_type result_type;
 	bool operator() (const String &x, const String &y) const { return x.to_upper() < y.to_upper(); }
 };
-
-////////////////////////////////////////////////////////////////////////
 
 class ExpandValues : public map<String, String, case_ignore_less> {
 	typedef ExpandValues Self;
@@ -412,13 +442,13 @@ private:
 public:
 	IniFileStream()									: _fp(NULL) {}
 
-	static String ininame(const String &exename);
+	static String determine_filename(const String &exename);
 	const String &filename() const					{ return _filename; }
-	void open(const String &ininame);
-	void open_w_exename(const String &exename)		{ open(ininame(exename)); }
-	void close()									{ fclose(_fp); _fp = NULL; }
-	bool good()										{ return _fp != NULL && !feof(_fp); }
-	bool eof()										{ return _fp == NULL || feof(_fp); }
+	void open(const String &filename);
+	void close();
+	bool is_open() const							{ return _fp != NULL; }
+	bool good() const								{ return _fp != NULL && !feof(_fp); }
+	bool eof() const								{ return _fp == NULL || feof(_fp); }
 	bool getline(String &s);
 
 	static bool is_comment(const String &s);
@@ -471,24 +501,43 @@ bool IniFileStream::skip_bom()
 	return false;
 }
 
-String IniFileStream::ininame(const String &exename)
+String IniFileStream::determine_filename(const String &exename)
 {
-	return exename.subext(L".ini");
+	String
+		r;
+
+	if(readable(r = exename.subext(L".ini")))
+		return r;
+
+	if(readable(r = exename.subext(L".bat")))
+		return r;
+
+	return exename.subext(L".ini"); /* default (but not found) */
 }
 
-void IniFileStream::open(const String &ininame)
+void IniFileStream::open(const String &fn)
 {
-	if(_fp != NULL)
-		close();
+	close();
 
-	_filename = ininame;
-	_fp = _wfopen(_filename.c_str(), L"rt");
-	skip_bom();
+	_fp = _wfopen(fn.c_str(), L"rt");
+
+	if(_fp != NULL){
+		_filename = fn;
+		skip_bom();
+	}
+}
+
+void IniFileStream::close()
+{
+	if(_fp != NULL){
+		fclose(_fp);
+		_fp = NULL;
+	}
 }
 
 bool IniFileStream::is_comment(const String &s)
 {
-	return s.size()==0 || s[0]==L'#' || s[0]==L';';
+	return s.size()==0 || s[0]==L'#' || s[0]==L';' || s[0]==L'@';
 }
 
 bool IniFileStream::is_section(const String &s)
@@ -588,12 +637,12 @@ public:
 	ExString(const wstring &s)			: Super(s) {}
 
 	String expand(const ExpandValues &ev) const;
-	Self &operator=(const wchar_t *s)	{ assign(s); return *this; }
 	Self &operator=(const Self &s)		{ assign(s); return *this; }
+	Self &operator=(const wchar_t *s)	{ assign(s); return *this; }
 };
 
-typedef vector<ExString>
-	ExStringList;
+typedef list<ExString>
+	ExStrings;
 
 String ExString::expand(const ExpandValues &ev) const
 {
@@ -681,14 +730,14 @@ BREAK:;
 
 class ExecuteInfo {
 	typedef ExecuteInfo Self;
-	typedef vector<String> EnvnameList;
+	typedef list<String> Envnames;
 
 private:
 	ExpandValues
 		_expandValues;
-	ExStringList
-		_exStringList;
-	EnvnameList
+	ExStrings
+		_exStrings;
+	Envnames
 		_import_env,
 		_export_env;
 	ExString
@@ -706,16 +755,15 @@ private:
 	static String getenv(const String &name);
 	static sint putenv(const String &name, const String &val);
 	static String system_escape(const String &s);
-	static bool executable(const String &cmd);
 
 public:
 	ExecuteInfo();
 
 	const ExpandValues &ev() const						{ return _expandValues; }
 	String ev(const ExpandValues::key_type &name) const	{ return _expandValues.get(name); }
-	const ExStringList &exs() const						{ return _exStringList; }
-	const EnvnameList &import_env() const				{ return _import_env; }
-	const EnvnameList &export_env() const				{ return _export_env; }
+	const ExStrings &exs() const						{ return _exStrings; }
+	const Envnames &import_env() const					{ return _import_env; }
+	const Envnames &export_env() const					{ return _export_env; }
 	const ExString &arg() const							{ return _arg; }
 	const ExString &chdir() const						{ return _chdir; }
 	bool verbose() const								{ return _verbose; }
@@ -742,13 +790,13 @@ public:
 	void verbose_out(const String &s);
 };
 
-typedef vector<ExecuteInfo>
-	ExecuteInfoList;
+typedef list<ExecuteInfo>
+	ExecuteInfos;
 
 ExecuteInfo::ExecuteInfo()
 {
 	_expandValues.clear();
-	_exStringList.clear();
+	_exStrings.clear();
 	_import_env.clear();
 	_export_env.clear();
 	_arg			= L"${ARG}";
@@ -802,16 +850,6 @@ String ExecuteInfo::system_escape(const String &s)
 	return r;
 }
 
-bool ExecuteInfo::executable(const String &cmd)
-{
-	FILE
-		*fp = _wfopen(cmd.c_str(), L"rb");
-
-	fclose(fp);
-
-	return fp!=NULL;
-}
-
 void ExecuteInfo::add_ev(const ExpandValues::key_type &name, const ExpandValues::mapped_type &val)
 {
 	_expandValues.add(name, val);
@@ -819,7 +857,7 @@ void ExecuteInfo::add_ev(const ExpandValues::key_type &name, const ExpandValues:
 
 void ExecuteInfo::add_exs(const String &s)
 {
-	_exStringList.push_back(s.doublequote_del());
+	_exStrings.push_back(s.doublequote_del());
 }
 
 void ExecuteInfo::add_import_env(const String &s)
@@ -853,20 +891,20 @@ sint ExecuteInfo::execute()
 
 	verbose_out(L"--- execute ---");
 
-	for(EnvnameList::const_iterator i = import_env().begin() ; i != import_env().end() ; ++i)
+	for(Envnames::const_iterator i = import_env().begin() ; i != import_env().end() ; ++i)
 		add_ev(*i, getenv(*i));
 
 	if(verbose()){
 		verbose_out(L"arg: " + arg());
 		verbose_out(L"chdir: " + chdir());
 
-		for(EnvnameList::const_iterator i = import_env().begin() ; i != import_env().end() ; ++i)
+		for(Envnames::const_iterator i = import_env().begin() ; i != import_env().end() ; ++i)
 			verbose_out(L"import_env: " + *i);
-		for(EnvnameList::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i)
+		for(Envnames::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i)
 			verbose_out(L"export_env: " + *i);
 		for(ExpandValues::const_iterator i = ev().begin() ; i != ev().end() ; ++i)
 			verbose_out(L"v: " + i->first + L"=" + i->second);
-		for(ExStringList::const_iterator i = exs().begin() ; i != exs().end() ; ++i)
+		for(ExStrings::const_iterator i = exs().begin() ; i != exs().end() ; ++i)
 			verbose_out(L"e: " + *i);
 	}
 
@@ -877,7 +915,7 @@ sint ExecuteInfo::execute()
 		return 1;
 	}
 
-	for(EnvnameList::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i){
+	for(Envnames::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i){
 		ExpandValues::const_iterator f = ev().find(*i);
 		if(f != ev().end())
 			putenv(L"WRAPEXEC_" + f->first, f->second);
@@ -885,7 +923,7 @@ sint ExecuteInfo::execute()
 			putcerr(PGM_WARN "variable not defined: ", *i);
 	}
 
-	for(ExStringList::const_iterator i = exs().begin() ; i != exs().end() ; ++i){
+	for(ExStrings::const_iterator i = exs().begin() ; i != exs().end() ; ++i){
 		cl.erase();
 		cmd = i->expand(ev());
 		arge = system_escape(arg().expand(ev()));
@@ -928,7 +966,7 @@ sint ExecuteInfo::execute()
 	}
 
 	// BUG: 「元に戻す」のではなく「クリアする」ということをしている
-	for(EnvnameList::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i){
+	for(Envnames::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i){
 		ExpandValues::const_iterator f = ev().find(*i);
 		if(f != ev().end())
 			putenv(L"WRAPEXEC_" + f->first, L"");
@@ -1088,7 +1126,7 @@ void do_help()
 		" [global]\n"
 		" [option]\n"
 		" [exec]\n"
-		" [eof]\n"
+		" [end]\n"
 		""
 	);
 
@@ -1138,7 +1176,7 @@ void do_help()
 	);
 }
 
-void setup_expandvalues(ExecuteInfo &ei,const String &exename)
+void setup_expandvalues(ExecuteInfo &ei, const String &exename, const String &ininame)
 {
 	String
 		s;
@@ -1147,7 +1185,7 @@ void setup_expandvalues(ExecuteInfo &ei,const String &exename)
 	ei.add_ev(L"CLIPBOARD", WindowsAPI::GetClipboardText());
 
 	ei.add_ev(L"MY_EXENAME", exename);
-	ei.add_ev(L"MY_ININAME", IniFileStream::ininame(exename));
+	ei.add_ev(L"MY_ININAME", ininame);
 	ei.add_ev(L"MY_BASENAME", exename.basename());
 	ei.add_ev(L"MY_DRIVE", exename.drivename());
 	ei.add_ev(L"MY_DIR", exename.dirname());
@@ -1228,11 +1266,11 @@ void do_inifile_option(IniFileStream &ifs, ExecuteInfo &e, const String &aline)
 	}
 }
 
-void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfoList &execinfolist, const String &exename)
+void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfos &execinfos, const String &ininame)
 {
 	enum section_id{
 		SECTION_NONE,
-		SECTION_EOF,
+		SECTION_END,
 		SECTION_GLOBAL,
 		SECTION_OPTION,
 		SECTION_EXEC,
@@ -1245,42 +1283,42 @@ void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfoList &execinfolist, 
 	String
 		aline;
 	section_id
-		section;
+		section = SECTION_EXEC;
 
-	ifs.open_w_exename(exename);
-	execinfo_default.verbose_out(L"ini filename: " + ifs.filename());
+	execinfos.clear();
+	execinfos.push_back(execinfo_default);
 
-	if(!ifs.good()){
-		putcerr(PGM_ERR "ini file open failed: ", ifs.filename());
+	ifs.open(ininame);
+
+	if(!ifs.is_open()){
+		putcerr(PGM_ERR "ini file open failed: ", ininame);
 		error = true;
 		rcode = -4;
 		return;
 	}
 
-	section = SECTION_EXEC;
-	execinfolist.clear();
-	execinfolist.push_back(execinfo_default);
+	execinfo_default.verbose_out(L"ini filename: " + ifs.filename());
 
 	while(ifs.getline(aline)){
 		if(ifs.is_comment(aline)){
 			; // コメントor空行なのでスキップ
 		}else{
 			if(ifs.is_section(aline)){
-				if(ifs.is_section(aline, L"EOF")){
-					execinfo_default.verbose_out(L"eof section detected");
+				if(ifs.is_section(aline, L"END")){
+					execinfo_default.verbose_out(L"end section detected");
 					break;
 				}else if(ifs.is_section(aline, L"GLOBAL")){
 					section = SECTION_GLOBAL;
 				}else if(ifs.is_section(aline, L"OPTION")){
 					section = SECTION_OPTION;
-					if(execinfolist.back().exs().size() > 0)
-						execinfolist.push_back(execinfo_default);
+					if(execinfos.back().exs().size() > 0)
+						execinfos.push_back(execinfo_default);
 					else
-						execinfolist.back() = execinfo_default;
+						execinfos.back() = execinfo_default;
 				}else if(ifs.is_section(aline, L"EXEC")){
 					section = SECTION_EXEC;
-					if(execinfolist.back().exs().size() > 0)
-						execinfolist.push_back(execinfo_default);
+					if(execinfos.back().exs().size() > 0)
+						execinfos.push_back(execinfo_default);
 				}else{
 					putcerr(PGM_ERR "invalid section name: ", aline);
 					section = SECTION_NONE;
@@ -1293,10 +1331,10 @@ void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfoList &execinfolist, 
 					do_inifile_option(ifs, execinfo_default, aline);
 					break;
 				case SECTION_OPTION:
-					do_inifile_option(ifs, execinfolist.back(), aline);
+					do_inifile_option(ifs, execinfos.back(), aline);
 					break;
 				case SECTION_EXEC:
-					execinfolist.back().add_exs(aline);
+					execinfos.back().add_exs(aline);
 					break;
 				default:
 					putcout(PGM_WARN "ignored: ", aline);
@@ -1309,18 +1347,20 @@ void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfoList &execinfolist, 
 	ifs.close();
 }
 
-void wrapexec_main(String exename)
+void wrapexec_main(const String exename)
 {
 	ExecuteInfo
 		execinfo_default;
-	ExecuteInfoList
-		execinfolist;
+	ExecuteInfos
+		execinfos;
+	const String
+		ininame = IniFileStream::determine_filename(exename);
 
-	setup_expandvalues(execinfo_default, exename);
+	setup_expandvalues(execinfo_default, exename, ininame);
 
-	load_inifile(execinfo_default, execinfolist, exename);
+	load_inifile(execinfo_default, execinfos, ininame);
 
-	for(ExecuteInfoList::iterator i = execinfolist.begin() ; !error && i != execinfolist.end() ; ++i)
+	for(ExecuteInfos::iterator i = execinfos.begin() ; !error && i != execinfos.end() ; ++i)
 		i->execute();
 }
 
@@ -1331,7 +1371,7 @@ sint main(sint ac, char *[])
 	wchar_t
 		**av = ::CommandLineToArgvW(::GetCommandLine(), &ac);
 
-	wrapexec_main(av[0]);
+	wrapexec_main(av[0]); // BUG : フルパス化されていない
 
 	GlobalFree(av);
 
@@ -1342,6 +1382,18 @@ sint main(sint ac, char *[])
 
 sint wmain(sint, wchar_t *av[])
 {
+	wrapexec_main(av[0]);
+
+	return rcode;
+}
+
+extern "C" sint WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR cl, int)
+{
+	sint
+		ac = 0;
+	wchar_t
+		**av = ::CommandLineToArgvW(cl, &ac);
+
 	wrapexec_main(av[0]);
 
 	return rcode;
