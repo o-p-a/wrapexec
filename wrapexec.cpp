@@ -748,6 +748,7 @@ private:
 		_internal,
 		_gui,
 		_wait,
+		_hide,
 		_maximize,
 		_minimize;
 
@@ -770,6 +771,7 @@ public:
 	bool internal() const								{ return _internal; }
 	bool gui() const									{ return _gui; }
 	bool wait() const									{ return _wait; }
+	bool hide() const									{ return _hide; }
 	bool maximize() const								{ return _maximize; }
 	bool minimize() const								{ return _minimize; }
 
@@ -783,6 +785,7 @@ public:
 	bool internal(bool v)								{ return _internal = v; }
 	bool gui(bool v)									{ return _gui = v; }
 	bool wait(bool v)									{ return _wait = v; }
+	bool hide(bool v)									{ return _hide = v; }
 	bool maximize(bool v)								{ return _maximize = v; }
 	bool minimize(bool v)								{ return _minimize = v; }
 
@@ -805,6 +808,11 @@ ExecuteInfo::ExecuteInfo()
 	_internal		= false;
 	_gui			= false;
 	_wait			= false;
+#ifdef __CONSOLE__
+	_hide			= false;
+#else
+	_hide			= true;
+#endif
 	_maximize		= false;
 	_minimize		= false;
 }
@@ -942,6 +950,8 @@ sint ExecuteInfo::execute()
 				cl += L"start \"" + ev(L"MY_BASENAME") + L"\" ";
 				if(wait())
 					cl += L"/wait ";
+				if(hide())
+					cl += L"/b ";
 				if(maximize())
 					cl += L"/max ";
 				if(minimize())
@@ -1141,6 +1151,7 @@ void do_help()
 		" internal\n"
 		" gui\n"
 		" wait\n"
+		" hide\n"
 		" maximize\n"
 		" minimize\n"
 		""
@@ -1253,6 +1264,8 @@ void do_inifile_option(IniFileStream &ifs, ExecuteInfo &e, const String &aline)
 		e.gui(ifs.get_value_bool(aline));
 	}else if(ifs.is_key(aline, L"WAIT")){
 		e.wait(ifs.get_value_bool(aline));
+	}else if(ifs.is_key(aline, L"HIDE")){
+		e.hide(ifs.get_value_bool(aline));
 	}else if(ifs.is_key(aline, L"MAXIMIZE")){
 		e.maximize(ifs.get_value_bool(aline));
 		e.minimize(false);
@@ -1380,6 +1393,8 @@ sint main(sint ac, char *[])
 
 #else // __MINGW32__
 
+#ifdef __CONSOLE__
+
 sint wmain(sint, wchar_t *av[])
 {
 	wrapexec_main(av[0]);
@@ -1387,7 +1402,10 @@ sint wmain(sint, wchar_t *av[])
 	return rcode;
 }
 
-extern "C" sint WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR cl, int)
+#else // __CONSOLE__
+
+extern "C"
+sint WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR cl, int)
 {
 	sint
 		ac = 0;
@@ -1398,5 +1416,7 @@ extern "C" sint WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR cl, int)
 
 	return rcode;
 }
+
+#endif // __CONSOLE__
 
 #endif // __MINGW32__
