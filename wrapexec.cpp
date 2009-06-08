@@ -19,7 +19,7 @@
 #define PGM_INFO			PGM ": "
 #define PGM_WARN			PGM " warning: "
 #define PGM_ERR				PGM " error: "
-#define VERSTR				"1.00"
+#define VERSTR				"1.01"
 
 #define CREDIT2009			"Copyright (c) 2009 by opa"
 
@@ -70,6 +70,29 @@ inline bool isnotwspace(wchar_t c)
 	return !iswspace(c);
 }
 
+inline bool isbackslash(wchar_t c)
+{
+	return c == L'\\' || c == L'/';
+}
+
+bool readable(const wstring &filename)
+{
+	FILE
+		*fp = _wfopen(filename.c_str(), L"rb");
+
+	if(fp != NULL){
+		fclose(fp);
+		return true;
+	}
+
+	return false;
+}
+
+inline bool executable(const wstring &filename)
+{
+	return readable(filename);
+}
+
 ////////////////////////////////////////////////////////////////////////
 
 class String : public wstring {
@@ -77,10 +100,12 @@ class String : public wstring {
 	typedef wstring Super;
 
 public:
-	String()									{}
-	String(const Super &s)						: Super(s) {}
-	String(const wchar_t *s)					: Super(s) {}
-	String(const_iterator b, const_iterator e)	: Super(b, e) {}
+	String();
+	String(const Super &s);
+	String(const wchar_t *s);
+	String(const_iterator b, const_iterator e);
+	String(const char *s);
+	~String();
 
 	string to_ansi() const;
 	Self to_upper() const;
@@ -88,22 +113,45 @@ public:
 	bool isdoublequote() const;
 	Self doublequote() const;
 	Self doublequote_del() const;
-	bool isbackslash() const;
-	Self backslash() const;
-	Self subext(const Self &ext) const;
-	Self drivename() const;
-	Self dirname() const;
-	Self basename() const;
 
-	Self &operator=(const Self &s)				{ assign(s); return *this; }
-	Self &operator=(const wchar_t *s)			{ assign(s); return *this; }
+	Self &operator=(const Self &s);
+	Self &operator=(const wchar_t *s);
+	Self &operator=(const char *s);
+
+	Self &operator+=(const Self &s)				{ append(s); return *this; }
+	Self &operator+=(const wchar_t *s)			{ append(s); return *this; }
+	Self &operator+=(const char *s);
+
 	Self &assign_from_ansi(const char *s);
 	Self &assign_from_ansi(const string &s)		{ return assign_from_ansi(s.c_str()); }
 	Self &assign_from_utf8(const char *s);
 	Self &assign_from_utf8(const string &s)		{ return assign_from_utf8(s.c_str()); }
 	Self &assign_from_env(const Self &name);
 	Self &printf(Self format, ...);
+
+	// filename operator
+	bool isbackslash() const;
+	Self backslash() const;
+	Self subext(const Self &ext) const;
+	Self drivename() const;
+	Self dirname() const;
+	Self basename() const;
 };
+
+String::String()									{}
+String::String(const String::Super &s)				: Super(s) {}
+String::String(const wchar_t *s)					: Super(s) {}
+String::String(const_iterator b, const_iterator e)	: Super(b, e) {}
+String::String(const char *s)						{ assign_from_ansi(s); }
+String::~String() {}
+String &String::operator=(const String &s)			{ assign(s); return *this; }
+String &String::operator=(const wchar_t *s)			{ assign(s); return *this; }
+String &String::operator=(const char *s)			{ assign_from_ansi(s); return *this; }
+String &String::operator+=(const char *s)			{ append(String(s)); return *this; }
+String operator+(const String &s1, const char *s2)	{ return s1 + String(s2); }
+String operator+(const char *s1, const String &s2)	{ return String(s1) + s2; }
+bool operator==(const String &s1, const char *s2)	{ return s1 == String(s2); }
+bool operator==(const char *s1, const String &s2)	{ return String(s1) == s2; }
 
 string String::to_ansi() const
 {
@@ -187,69 +235,6 @@ String String::doublequote_del() const
 		return String(*this);
 }
 
-bool String::isbackslash() const
-{
-	return size() > 0 && *(end()-1) == L'\\';
-}
-
-String String::backslash() const
-{
-	String
-		r(*this);
-
-	if(!isbackslash())
-		r.append(1, L'\\');
-
-	return r;
-}
-
-String String::subext(const String &ext) const
-{
-	size_type
-		period = rfind(L'.');
-
-	if(period == npos)
-		period = size();
-
-	return Self(begin(), begin() + period).append(ext);
-}
-
-String String::drivename() const
-{
-	if(size() >= 2 && iswalpha((*this)[0]) && (*this)[1] == L':')
-		return Self(begin(), begin() + 2);
-
-	return Self();
-}
-
-String String::dirname() const
-{
-	const_iterator
-		e = ::rfind(begin(), end(), L'\\');
-
-	if(e != end() && *e == L'\\')
-		++e;
-
-	return Self(begin(), e);
-}
-
-String String::basename() const
-{
-	const_iterator
-		b = begin(),
-		e = end();
-
-	b = ::rfind(b, e, L'\\');
-
-	if(b != end() && *b == L'\\')
-		++b;
-
-	if((e = ::rfind(b, e, L'.')) == b)
-		e = end();
-
-	return Self(b, e);
-}
-
 String &String::assign_from_ansi(const char *s)
 {
 	sint
@@ -319,6 +304,69 @@ String &String::printf(String format, ...) // vaを使う必要上、Stringを値渡しする
 	return *this;
 }
 
+bool String::isbackslash() const
+{
+	return size() > 0 && ::isbackslash(*(end()-1));
+}
+
+String String::backslash() const
+{
+	String
+		r(*this);
+
+	if(!isbackslash())
+		r.append(1, L'\\');
+
+	return r;
+}
+
+String String::subext(const String &ext) const
+{
+	size_type
+		period = rfind(L'.');
+
+	if(period == npos)
+		period = size();
+
+	return Self(begin(), begin() + period).append(ext);
+}
+
+String String::drivename() const
+{
+	if(size() >= 2 && iswalpha((*this)[0]) && (*this)[1] == L':')
+		return Self(begin(), begin() + 2);
+
+	return Self();
+}
+
+String String::dirname() const
+{
+	const_iterator
+		e = ::rfind_if(begin(), end(), ::isbackslash);
+
+	if(e != end() && ::isbackslash(*e))
+		++e;
+
+	return Self(begin(), e);
+}
+
+String String::basename() const
+{
+	const_iterator
+		b = begin(),
+		e = end();
+
+	b = ::rfind_if(b, e, ::isbackslash);
+
+	if(b != end() && ::isbackslash(*b))
+		++b;
+
+	if((e = ::rfind(b, e, L'.')) == b)
+		e = end();
+
+	return Self(b, e);
+}
+
 ////////////////////////////////////////////////////////////////////////
 
 void _putcxxx(const char *s, FILE *fp)
@@ -367,24 +415,6 @@ inline void putcerr(const char *s1, const String &s2)
 	_putcxxx(s1, s2, stderr);
 }
 
-bool readable(const String &filename)
-{
-	FILE
-		*fp = _wfopen(filename.c_str(), L"rb");
-
-	if(fp != NULL){
-		fclose(fp);
-		return true;
-	}
-
-	return false;
-}
-
-inline bool executable(const String &filename)
-{
-	return readable(filename);
-}
-
 ////////////////////////////////////////////////////////////////////////
 
 class case_ignore_less : public binary_function<String, String, bool>
@@ -417,10 +447,10 @@ ExpandValues::mapped_type ExpandValues::get(const ExpandValues::key_type &name) 
 	const_iterator
 		i = find(name);
 
-	if(i == end())
-		return String();
+	if(i != end())
+		return i->second;
 
-	return i->second;
+	return String();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -506,13 +536,13 @@ String IniFileStream::determine_filename(const String &exename)
 	String
 		r;
 
-	if(readable(r = exename.subext(L".ini")))
+	if(readable(r = exename.subext(".ini")))
 		return r;
 
-	if(readable(r = exename.subext(L".bat")))
+	if(readable(r = exename.subext(".bat")))
 		return r;
 
-	return exename.subext(L".ini"); /* default (but not found) */
+	return exename.subext(".ini"); /* default (but not found) */
 }
 
 void IniFileStream::open(const String &fn)
@@ -581,9 +611,9 @@ bool IniFileStream::get_value_bool(const String &s)
 
 	value = value.trim().to_upper();
 
-	if(value == L"TRUE" || value == L"YES" || value == L"ON"){
+	if(value == "TRUE" || value == "YES" || value == "ON"){
 		r = true;
-	}else if(value == L"FALSE" || value == L"NO" || value == L"OFF"){
+	}else if(value == "FALSE" || value == "NO" || value == "OFF"){
 		r = false;
 	}else{
 		putcerr(PGM_ERR "invalid value: ", value);
@@ -637,8 +667,9 @@ public:
 	ExString(const wstring &s)			: Super(s) {}
 
 	String expand(const ExpandValues &ev) const;
-	Self &operator=(const Self &s)		{ assign(s); return *this; }
-	Self &operator=(const wchar_t *s)	{ assign(s); return *this; }
+	Self &operator=(const Self &s)		{ Super::operator=(s); return *this; }
+	Self &operator=(const wchar_t *s)	{ Super::operator=(s); return *this; }
+	Self &operator=(const char *s)		{ Super::operator=(s); return *this; }
 };
 
 typedef list<ExString>
@@ -746,6 +777,7 @@ private:
 	bool
 		_verbose,
 		_internal,
+		_use_path,
 		_gui,
 		_wait,
 		_hide,
@@ -769,6 +801,7 @@ public:
 	const ExString &chdir() const						{ return _chdir; }
 	bool verbose() const								{ return _verbose; }
 	bool internal() const								{ return _internal; }
+	bool use_path() const								{ return _use_path; }
 	bool gui() const									{ return _gui; }
 	bool wait() const									{ return _wait; }
 	bool hide() const									{ return _hide; }
@@ -783,6 +816,7 @@ public:
 	ExString &set_chdir(const String &s);
 	bool verbose(bool v)								{ return _verbose = v; }
 	bool internal(bool v)								{ return _internal = v; }
+	bool use_path(bool v)								{ return _use_path = v; }
 	bool gui(bool v)									{ return _gui = v; }
 	bool wait(bool v)									{ return _wait = v; }
 	bool hide(bool v)									{ return _hide = v; }
@@ -802,10 +836,11 @@ ExecuteInfo::ExecuteInfo()
 	_exStrings.clear();
 	_import_env.clear();
 	_export_env.clear();
-	_arg			= L"${ARG}";
-	_chdir			= L"";
+	_arg			= "${ARG}";
+	_chdir			= "";
 	_verbose		= false;
 	_internal		= false;
+	_use_path		= false;
 	_gui			= false;
 	_wait			= false;
 #ifdef __CONSOLE__
@@ -860,32 +895,52 @@ String ExecuteInfo::system_escape(const String &s)
 
 void ExecuteInfo::add_ev(const ExpandValues::key_type &name, const ExpandValues::mapped_type &val)
 {
-	_expandValues.add(name, val);
+	if(name.size() > 0)
+		_expandValues.add(name, val);
 }
 
 void ExecuteInfo::add_exs(const String &s)
 {
-	_exStrings.push_back(s.doublequote_del());
+	String
+		x = s.trim().doublequote_del();
+
+	if(x.size() > 0)
+		_exStrings.push_back(x);
 }
 
 void ExecuteInfo::add_import_env(const String &s)
 {
-	_import_env.push_back(s.trim());
+	String
+		x = s.trim();
+
+	if(x.size() > 0)
+		_import_env.push_back(x);
 }
 
 void ExecuteInfo::add_export_env(const String &s)
 {
-	_export_env.push_back(s.trim());
+	String
+		x = s.trim();
+
+	if(x.size() > 0)
+		_export_env.push_back(x);
 }
 
 ExString &ExecuteInfo::set_arg(const String &s)
 {
-	return _arg = s;
+	// 空文字列も有り得る
+	return _arg = s.trim();
 }
 
 ExString &ExecuteInfo::set_chdir(const String &s)
 {
-	return _chdir = s.trim().doublequote_del();
+	// 空文字列も有り得る
+	return _chdir = s.trim();
+}
+
+bool is_exe_or_com()
+{
+	return true;
 }
 
 sint ExecuteInfo::execute()
@@ -897,23 +952,23 @@ sint ExecuteInfo::execute()
 	bool
 		done = false;
 
-	verbose_out(L"--- execute ---");
+	verbose_out("--- execute ---");
 
 	for(Envnames::const_iterator i = import_env().begin() ; i != import_env().end() ; ++i)
 		add_ev(*i, getenv(*i));
 
 	if(verbose()){
-		verbose_out(L"arg: " + arg());
-		verbose_out(L"chdir: " + chdir());
+		verbose_out("arg: " + arg());
+		verbose_out("chdir: " + chdir());
 
 		for(Envnames::const_iterator i = import_env().begin() ; i != import_env().end() ; ++i)
-			verbose_out(L"import_env: " + *i);
+			verbose_out("import_env: " + *i);
 		for(Envnames::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i)
-			verbose_out(L"export_env: " + *i);
+			verbose_out("export_env: " + *i);
 		for(ExpandValues::const_iterator i = ev().begin() ; i != ev().end() ; ++i)
-			verbose_out(L"v: " + i->first + L"=" + i->second);
+			verbose_out("v: " + i->first + "=" + i->second);
 		for(ExStrings::const_iterator i = exs().begin() ; i != exs().end() ; ++i)
-			verbose_out(L"e: " + *i);
+			verbose_out("e: " + *i);
 	}
 
 	if(exs().size() <= 0){
@@ -926,7 +981,7 @@ sint ExecuteInfo::execute()
 	for(Envnames::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i){
 		ExpandValues::const_iterator f = ev().find(*i);
 		if(f != ev().end())
-			putenv(L"WRAPEXEC_" + f->first, f->second);
+			putenv("WRAPEXEC_" + f->first, f->second);
 		else
 			putcerr(PGM_WARN "variable not defined: ", *i);
 	}
@@ -938,38 +993,65 @@ sint ExecuteInfo::execute()
 		if(arge.size() > 0 && !iswspace(arge[0]))
 			arge = L' ' + arge; // 空白がないとコマンド名とくっついてしまうのでスペースを補う
 
-		if(chdir().size() > 0)
-			cl += L"pushd \"" + chdir().expand(ev()) + L"\" && ";
-
 		if(internal()){
-			verbose_out(L"executable: " + cmd + L" (internal)");
+			verbose_out("executable: " + cmd + " (internal)");
 			cl += cmd + arge;
-		}else if(executable(cmd)){
-			verbose_out(L"executable: " + cmd);
-			if(gui()){
-				cl += L"start \"" + ev(L"MY_BASENAME") + L"\" ";
-				if(wait())
-					cl += L"/wait ";
-				if(hide())
-					cl += L"/b ";
-				if(maximize())
-					cl += L"/max ";
-				if(minimize())
-					cl += L"/min ";
-			}
-			cl += cmd.doublequote() + arge;
 		}else{
-			verbose_out(L"unexecutable: " + cmd);
-			cl.erase(); // for safe
+			if(use_path()){
+
+
+
+
+
+			}else if(executable(cmd)){
+				verbose_out("executable: " + cmd);
+				if(gui()){
+					cl += "start \"" + ev("MY_BASENAME") + "\" ";
+					if(wait())
+						cl += "/wait ";
+					if(hide())
+						cl += "/b ";
+					if(maximize())
+						cl += "/max ";
+					if(minimize())
+						cl += "/min ";
+				}
+				cl += cmd.doublequote() + arge;
+			}else{
+				verbose_out("unexecutable: " + cmd);
+				cl.erase(); // for safe
+			}
 		}
 
 		if(cl.size() > 0){
-			verbose_out(L"cmdline: " + cl);
+			if(chdir().size() > 0)
+				cl = "pushd \"" + chdir().expand(ev()) + "\" && " + cl;
+
+			if(is_exe_or_com()){
+				// CreateProcess() で起動
+
+
+			}else{
+				// cmd.exe経由で起動
+
+
+			}
+
+
+
+
+
+
+
+
+
+
+			verbose_out("cmdline: " + cl);
 
 			rcode = system(L'"' + cl + L'"'); // ここでクォートするとなぜうまくいくのか判らない。cmd.exeの謎
 			done = true;
 
-			verbose_out(String().printf(L"return code: %d", rcode));
+			verbose_out(String().printf("return code: %d", rcode));
 
 			break;
 		}
@@ -979,18 +1061,18 @@ sint ExecuteInfo::execute()
 	for(Envnames::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i){
 		ExpandValues::const_iterator f = ev().find(*i);
 		if(f != ev().end())
-			putenv(L"WRAPEXEC_" + f->first, L"");
+			putenv("WRAPEXEC_" + f->first, "");
 	}
 
 	if(!done){
 #if 1
 		rcode = 1;
-		putcerr(L"'" + system_escape(ev(L"MY_BASENAME")) +
-				L"' is not recognized as an internal or external command,\n"
-				L"operable program or batch file.");
+		putcerr("'" + system_escape(ev("MY_BASENAME")) +
+				"' is not recognized as an internal or external command,\n"
+				"operable program or batch file.");
 #else
 		// 存在し得ないコマンド名をcmd.exe与えて、エラーメッセージを出させる
-		rcode = system(system_escape(ev(L"MY_BASENAME")) + L"\"\b");
+		rcode = system(system_escape(ev("MY_BASENAME")) + "\"\b");
 #endif
 		error = true;
 		return 1;
@@ -1149,6 +1231,7 @@ void do_help()
 		" export_env\n"
 		" verbose\n"
 		" internal\n"
+		" use_path\n"
 		" gui\n"
 		" wait\n"
 		" hide\n"
@@ -1192,84 +1275,86 @@ void setup_expandvalues(ExecuteInfo &ei, const String &exename, const String &in
 	String
 		s;
 
-	ei.add_ev(L"ARG", get_given_option(WindowsAPI::GetCommandLine()));
-	ei.add_ev(L"CLIPBOARD", WindowsAPI::GetClipboardText());
+	ei.add_ev("ARG", get_given_option(WindowsAPI::GetCommandLine()));
+	ei.add_ev("CLIPBOARD", WindowsAPI::GetClipboardText());
 
-	ei.add_ev(L"MY_EXENAME", exename);
-	ei.add_ev(L"MY_ININAME", ininame);
-	ei.add_ev(L"MY_BASENAME", exename.basename());
-	ei.add_ev(L"MY_DRIVE", exename.drivename());
-	ei.add_ev(L"MY_DIR", exename.dirname());
-	ei.add_ev(L"MY", exename.dirname());
+	ei.add_ev("MY_EXENAME", exename);
+	ei.add_ev("MY_ININAME", ininame);
+	ei.add_ev("MY_BASENAME", exename.basename());
+	ei.add_ev("MY_DRIVE", exename.drivename());
+	ei.add_ev("MY_DIR", exename.dirname());
+	ei.add_ev("MY", exename.dirname());
 
 	s = WindowsAPI::GetComputerName();										// SOMEONESPC
-	ei.add_ev(L"SYS_NAME", s);
+	ei.add_ev("SYS_NAME", s);
 	s = WindowsAPI::SHGetSpecialFolder(CSIDL_WINDOWS);						// C:\WINDOWS
-	ei.add_ev(L"SYS_ROOT", s.backslash());
+	ei.add_ev("SYS_ROOT", s.backslash());
 	s = WindowsAPI::SHGetSpecialFolder(CSIDL_SYSTEM);						// C:\WINDOWS\system32
-	ei.add_ev(L"SYS_DRIVE", s.drivename());
-	ei.add_ev(L"SYS_DIR", s.backslash());
-	ei.add_ev(L"SYS", s.backslash());
+	ei.add_ev("SYS_DRIVE", s.drivename());
+	ei.add_ev("SYS_DIR", s.backslash());
+	ei.add_ev("SYS", s.backslash());
 
 	s = WindowsAPI::GetUserName();											// someone
-	ei.add_ev(L"USER_NAME", s);
+	ei.add_ev("USER_NAME", s);
 	s = WindowsAPI::SHGetSpecialFolder(CSIDL_PROFILE);						// C:\Documents and Settings\someone
-	ei.add_ev(L"USER_DRIVE", s.drivename());
-	ei.add_ev(L"USER_DIR", s.backslash());
-	ei.add_ev(L"USER", s.backslash());
+	ei.add_ev("USER_DRIVE", s.drivename());
+	ei.add_ev("USER_DIR", s.backslash());
+	ei.add_ev("USER", s.backslash());
 	s = WindowsAPI::SHGetSpecialFolder(CSIDL_PERSONAL);						// C:\Documents and Settings\someone\My Documents
-	ei.add_ev(L"USER_DOC", s.backslash());
+	ei.add_ev("USER_DOC", s.backslash());
 	s = WindowsAPI::SHGetSpecialFolder(CSIDL_DESKTOPDIRECTORY);				// C:\Documents and Settings\someone\デスクトップ
-	ei.add_ev(L"USER_DESKTOP", s.backslash());
+	ei.add_ev("USER_DESKTOP", s.backslash());
 
 	s = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DOCUMENTS).dirname();	// C:\Documents and Settings\All Users\Documents
-	ei.add_ev(L"ALL_USER_DRIVE", s.drivename());
-	ei.add_ev(L"ALL_USER_DIR", s.backslash());
-	ei.add_ev(L"ALL_USER", s.backslash());
+	ei.add_ev("ALL_USER_DRIVE", s.drivename());
+	ei.add_ev("ALL_USER_DIR", s.backslash());
+	ei.add_ev("ALL_USER", s.backslash());
 	s = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DOCUMENTS);				// C:\Documents and Settings\All Users\Documents
-	ei.add_ev(L"ALL_USER_DOC", s.backslash());
+	ei.add_ev("ALL_USER_DOC", s.backslash());
 	s = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DESKTOPDIRECTORY);		// C:\Documents and Settings\All Users\デスクトップ
-	ei.add_ev(L"ALL_USER_DESKTOP", s.backslash());
+	ei.add_ev("ALL_USER_DESKTOP", s.backslash());
 
 	s = WindowsAPI::SHGetSpecialFolder(CSIDL_PROGRAM_FILES);				// C:\Program Files
-	ei.add_ev(L"PROGRAM_DRIVE", s.drivename());
-	ei.add_ev(L"PROGRAM_DIR", s.backslash());
-	ei.add_ev(L"PROGRAM", s.backslash());
+	ei.add_ev("PROGRAM_DRIVE", s.drivename());
+	ei.add_ev("PROGRAM_DIR", s.backslash());
+	ei.add_ev("PROGRAM", s.backslash());
 
 	s = WindowsAPI::GetTempPath();											// C:\DOCUME~1\SOMEONE\LOCALS~1\Temp
-	ei.add_ev(L"TMP_DRIVE", s.drivename());
-	ei.add_ev(L"TMP_DIR", s.backslash());
-	ei.add_ev(L"TMP", s.backslash());
+	ei.add_ev("TMP_DRIVE", s.drivename());
+	ei.add_ev("TMP_DIR", s.backslash());
+	ei.add_ev("TMP", s.backslash());
 }
 
 void do_inifile_option(IniFileStream &ifs, ExecuteInfo &e, const String &aline)
 {
-	if(ifs.is_key(aline, L"HELP")){
+	if(ifs.is_key(aline, "HELP")){
 		do_help();
 		error = true;	// execフェーズを実行しない
 		rcode = 0;		// がエラーではないのでrcodeは0を返す
-	}else if(ifs.is_key(aline, L"ARG")){
+	}else if(ifs.is_key(aline, "ARG")){
 		e.set_arg(ifs.get_value_String(aline));
-	}else if(ifs.is_key(aline, L"CHDIR")){
+	}else if(ifs.is_key(aline, "CHDIR")){
 		e.set_chdir(ifs.get_value_String(aline));
-	}else if(ifs.is_key(aline, L"IMPORT_ENV")){
+	}else if(ifs.is_key(aline, "IMPORT_ENV")){
 		e.add_import_env(ifs.get_value_String(aline));
-	}else if(ifs.is_key(aline, L"EXPORT_ENV")){
+	}else if(ifs.is_key(aline, "EXPORT_ENV")){
 		e.add_export_env(ifs.get_value_String(aline));
-	}else if(ifs.is_key(aline, L"VERBOSE")){
+	}else if(ifs.is_key(aline, "VERBOSE")){
 		e.verbose(ifs.get_value_bool(aline));
-	}else if(ifs.is_key(aline, L"INTERNAL")){
+	}else if(ifs.is_key(aline, "INTERNAL")){
 		e.internal(ifs.get_value_bool(aline));
-	}else if(ifs.is_key(aline, L"GUI")){
+	}else if(ifs.is_key(aline, "USE_PATH")){
+		e.use_path(ifs.get_value_bool(aline));
+	}else if(ifs.is_key(aline, "GUI")){
 		e.gui(ifs.get_value_bool(aline));
-	}else if(ifs.is_key(aline, L"WAIT")){
+	}else if(ifs.is_key(aline, "WAIT")){
 		e.wait(ifs.get_value_bool(aline));
-	}else if(ifs.is_key(aline, L"HIDE")){
+	}else if(ifs.is_key(aline, "HIDE")){
 		e.hide(ifs.get_value_bool(aline));
-	}else if(ifs.is_key(aline, L"MAXIMIZE")){
+	}else if(ifs.is_key(aline, "MAXIMIZE")){
 		e.maximize(ifs.get_value_bool(aline));
 		e.minimize(false);
-	}else if(ifs.is_key(aline, L"MINIMIZE")){
+	}else if(ifs.is_key(aline, "MINIMIZE")){
 		e.minimize(ifs.get_value_bool(aline));
 		e.maximize(false);
 	}else{
@@ -1289,7 +1374,7 @@ void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfos &execinfos, const 
 		SECTION_EXEC,
 	};
 
-	execinfo_default.verbose_out(L"--- prepare ---");
+	execinfo_default.verbose_out("--- prepare ---");
 
 	IniFileStream
 		ifs;
@@ -1310,25 +1395,25 @@ void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfos &execinfos, const 
 		return;
 	}
 
-	execinfo_default.verbose_out(L"ini filename: " + ifs.filename());
+	execinfo_default.verbose_out("ini filename: " + ifs.filename());
 
 	while(ifs.getline(aline)){
 		if(ifs.is_comment(aline)){
 			; // コメントor空行なのでスキップ
 		}else{
 			if(ifs.is_section(aline)){
-				if(ifs.is_section(aline, L"END")){
-					execinfo_default.verbose_out(L"end section detected");
+				if(ifs.is_section(aline, "END")){
+					execinfo_default.verbose_out("end section detected");
 					break;
-				}else if(ifs.is_section(aline, L"GLOBAL")){
+				}else if(ifs.is_section(aline, "GLOBAL")){
 					section = SECTION_GLOBAL;
-				}else if(ifs.is_section(aline, L"OPTION")){
+				}else if(ifs.is_section(aline, "OPTION")){
 					section = SECTION_OPTION;
 					if(execinfos.back().exs().size() > 0)
 						execinfos.push_back(execinfo_default);
 					else
 						execinfos.back() = execinfo_default;
-				}else if(ifs.is_section(aline, L"EXEC")){
+				}else if(ifs.is_section(aline, "EXEC")){
 					section = SECTION_EXEC;
 					if(execinfos.back().exs().size() > 0)
 						execinfos.push_back(execinfo_default);
@@ -1360,14 +1445,16 @@ void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfos &execinfos, const 
 	ifs.close();
 }
 
-void wrapexec_main(const String exename)
+void wrapexec_main(const String &exename)
 {
 	ExecuteInfo
 		execinfo_default;
 	ExecuteInfos
 		execinfos;
-	const String
-		ininame = IniFileStream::determine_filename(exename);
+	String
+		ininame;
+
+	ininame = IniFileStream::determine_filename(exename);
 
 	setup_expandvalues(execinfo_default, exename, ininame);
 
