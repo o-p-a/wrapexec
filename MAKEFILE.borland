@@ -7,32 +7,30 @@
 # -Ox     Optimizations
 # -d      Merge duplicate strings
 # -Wx     Create Windows app
-# -M      Generate link map
+# -RT     Generate RTTI
 
 PRJ = wrapexec
 
-CFLAGS = -5 -C -O1 -d -WU -M
+CFLAGS = -5 -C -O1 -d -WU -RT-
 RM = del
 
-all: $(PRJ).exe $(PRJ)w.exe
+all: $(PRJ).exe # $(PRJ)w.exe
 
 $(PRJ).exe: $(PRJ).cpp $(PRJ).rc $(PRJ)1.ico $(PRJ)2.ico
-	$(CC) $(CFLAGS) -WC $(PRJ).cpp
+	$(CC) $(CFLAGS) -WC $(PRJ).cpp noeh32.lib
 	brc32 $(PRJ).rc
 	upx -q -q --lzma --compress-icons=0 $(PRJ).exe
 
-$(PRJ)w.exe: $(PRJ).cpp $(PRJ).rc $(PRJ)1.ico $(PRJ)2.ico
-	$(CC) $(CFLAGS) -W -e$(PRJ)w.exe $(PRJ).cpp
-	brc32 $(PRJ).rc -fe$(PRJ)w.exe
-	upx -q -q --lzma --compress-icons=0 $(PRJ)w.exe
+#$(PRJ)w.exe: $(PRJ).cpp $(PRJ).rc $(PRJ)1.ico $(PRJ)2.ico
+#	$(CC) $(CFLAGS) -W $(PRJ).cpp noeh32.lib -e$(PRJ)w.exe
+#	brc32 $(PRJ).rc -fe$(PRJ)w.exe
+#	upx -q -q --lzma --compress-icons=0 $(PRJ)w.exe
 
 clean:
 	$(RM) $(PRJ).obj
 	$(RM) $(PRJ).res
 	$(RM) $(PRJ).tds
-	$(RM) $(PRJ).map
 	$(RM) $(PRJ).exe
-	$(RM) $(PRJ)w.tds
-	$(RM) $(PRJ)w.map
-	$(RM) $(PRJ)w.exe
+#	$(RM) $(PRJ)w.tds
+#	$(RM) $(PRJ)w.exe
 
