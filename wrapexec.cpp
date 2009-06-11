@@ -130,6 +130,8 @@ public:
 	Self &printf(Self format, ...);
 
 	// filename operator
+	bool have_path() const;
+	bool have_ext() const;
 	bool isbackslash() const;
 	Self backslash() const;
 	Self subext(const Self &ext) const;
@@ -160,8 +162,7 @@ string String::to_ansi() const
 	char
 		*buf = new char[siz+1];
 
-	fill(buf, buf + siz, ' ');
-	buf[siz] = L'\0';
+	fill(buf, buf + siz+1, 0);
 
 	WideCharToMultiByte(CP_ACP, 0, c_str(), size(), buf, siz, NULL, NULL);
 
@@ -190,8 +191,8 @@ String String::trim() const
 		b = begin(),
 		e = end();
 
-	b = find_if(b, e, isnotwspace);
-	e = rfind_if(b, e, isnotwspace);
+	b = ::find_if(b, e, isnotwspace);
+	e = ::rfind_if(b, e, isnotwspace);
 
 	if(e != end() && isnotwspace(*e))
 		++e;
@@ -242,8 +243,7 @@ String &String::assign_from_ansi(const char *s)
 	wchar_t
 		*buf = new wchar_t[size+1];
 
-	fill(buf, buf + size, L' ');
-	buf[size] = L'\0';
+	fill(buf, buf + size+1, 0);
 
 	MultiByteToWideChar(CP_ACP, 0, s, -1, buf, size);
 
@@ -261,8 +261,7 @@ String &String::assign_from_utf8(const char *s)
 	wchar_t
 		*buf = new wchar_t[size+1];
 
-	fill(buf, buf + size, L' ');
-	buf[size] = L'\0';
+	fill(buf, buf + size+1, 0);
 
 	MultiByteToWideChar(CP_UTF8, 0, s, -1, buf, size);
 
@@ -286,7 +285,7 @@ String &String::assign_from_env(const String &name)
 	return *this;
 }
 
-String &String::printf(String format, ...) // vaを使う必要上、Stringを値渡しする
+String &String::printf(String format, ...) // vaを使う必要上、Stringは値渡し
 {
 	wchar_t
 		buf[1024+1];
@@ -304,6 +303,27 @@ String &String::printf(String format, ...) // vaを使う必要上、Stringを値渡しする
 	return *this;
 }
 
+bool String::have_path() const
+{
+	return ::find(begin(), end(), L':') != end() || ::find_if(begin(), end(), ::isbackslash) != end();
+}
+
+bool String::have_ext() const
+{
+	const_iterator
+		b = begin();
+
+	b = ::rfind_if(b, end(), ::isbackslash);
+	if(b != end() && ::isbackslash(*b))
+		++b;
+
+	b = ::find(b, end(), L'.');
+	if(b != end() && *b == L'.')
+		return true;
+
+	return false;
+}
+
 bool String::isbackslash() const
 {
 	return size() > 0 && ::isbackslash(*(end()-1));
@@ -314,7 +334,7 @@ String String::backslash() const
 	String
 		r(*this);
 
-	if(!isbackslash())
+	if(size() > 0 && !isbackslash())
 		r.append(1, L'\\');
 
 	return r;
@@ -322,13 +342,13 @@ String String::backslash() const
 
 String String::subext(const String &ext) const
 {
-	size_type
-		period = rfind(L'.');
+	const_iterator
+		e = ::rfind(begin(), end(), L'.');
 
-	if(period == npos)
-		period = size();
+	if(e != end() && *e != L'.')
+		e = end();
 
-	return Self(begin(), begin() + period).append(ext);
+	return Self(begin(), e).append(ext);
 }
 
 String String::drivename() const
@@ -357,11 +377,11 @@ String String::basename() const
 		e = end();
 
 	b = ::rfind_if(b, e, ::isbackslash);
-
 	if(b != end() && ::isbackslash(*b))
 		++b;
 
-	if((e = ::rfind(b, e, L'.')) == b)
+	e = ::rfind(b, e, L'.');
+	if(e != end() && *e != L'.')
 		e = end();
 
 	return Self(b, e);
@@ -371,8 +391,16 @@ String String::basename() const
 
 void _putcxxx(const char *s, FILE *fp)
 {
+#if defined(__CONSOLE__) || 1
 	fputs(s, fp);
 	fputc('\n', fp);
+#else // __CONSOLE__
+	if((fp = _wfopen(L"debug.out.txt", L"at")) != NULL){
+		fputs(s, fp);
+		fputc('\n', fp);
+		fclose(fp);
+	}
+#endif // __CONSOLE__
 }
 
 inline void putcout(const char *s)
@@ -705,7 +733,7 @@ String ExString::expand(const ExpandValues &ev) const
 				else if(c1 == L'[')
 					cc = L']';
 				else
-					cc = L'\0';
+					cc = 0;
 
 				++i;
 				if(i == end()){
@@ -714,7 +742,7 @@ String ExString::expand(const ExpandValues &ev) const
 					goto BREAK;
 				}
 
-				evname.erase();
+				evname.clear();
 				while(1){
 					c2 = *i;
 					if(c2 == cc){
@@ -759,6 +787,140 @@ BREAK:;
 
 ////////////////////////////////////////////////////////////////////////
 
+class WindowsAPI {
+public:
+	static bool CreateProcess(const String &cmd, DWORD CreationFlags, const String &wd, LPSTARTUPINFO si, LPPROCESS_INFORMATION pi);
+	static String GetClipboardText();
+	static String GetCommandLine()		{ return ::GetCommandLine(); }
+	static String GetComputerName();
+	static String GetModuleFileName(HMODULE Module = 0);
+	static String GetTempPath();
+	static String GetUserName();
+	static String SHGetSpecialFolder(sint nFolder);
+};
+
+bool WindowsAPI::CreateProcess(const String &cmd, DWORD CreationFlags, const String &wd, LPSTARTUPINFO si, LPPROCESS_INFORMATION pi)
+{
+	bool
+		r;
+	wchar_t
+		*cmd_c_str;
+
+	cmd_c_str = new wchar_t[cmd.size()+1];
+	copy(cmd.begin(), cmd.end(), cmd_c_str);
+	cmd_c_str[cmd.size()] = 0;
+
+	r = ::CreateProcess(NULL, cmd_c_str, NULL, NULL, FALSE, CreationFlags, NULL, (wd.size()>0 ? wd.c_str() : NULL), si, pi);
+
+	delete [] cmd_c_str;
+
+	return r;
+}
+
+String WindowsAPI::GetClipboardText()
+{
+	String
+		r;
+	HANDLE
+		h;
+
+	if(::OpenClipboard(NULL) == 0)
+		return String();
+
+	if((h = ::GetClipboardData(CF_UNICODETEXT)) != NULL){
+		r.assign((wchar_t *)::GlobalLock(h));
+		::GlobalUnlock(h);
+	}
+
+	if(::CloseClipboard() == 0)
+		return String();
+
+	// 改行文字等はスペースに置換する
+	for(String::iterator i = r.begin() ; i != r.end() ; ++i)
+		if(iswspace(*i))
+			*i = L' ';
+
+	return r;
+}
+
+String WindowsAPI::GetComputerName()
+{
+	wchar_t
+		buf[MAX_COMPUTERNAME_LENGTH+1];
+	DWORD
+		size = sizeof buf / sizeof(wchar_t);
+
+	if(::GetComputerName(buf, &size) == 0)
+		return String();
+
+	return String(String::iterator(buf), String::iterator(buf + size));
+}
+
+String WindowsAPI::GetModuleFileName(HMODULE Module)
+{
+	wchar_t
+		buf[MAX_PATH+1];
+	DWORD
+		size = sizeof buf / sizeof(wchar_t);
+
+	size = ::GetModuleFileName(Module, buf, size);
+
+	if(size == 0)
+		return String();
+
+	return String(buf, buf + size);
+}
+
+String WindowsAPI::GetTempPath()
+{
+	String
+		r;
+	DWORD
+		size = ::GetTempPath(0, NULL);
+	wchar_t
+		*buf = new wchar_t[size];
+
+	::GetTempPath(size, buf);
+	r.assign(buf);
+	delete [] buf;
+
+	return r;
+}
+
+String WindowsAPI::GetUserName()
+{
+	wchar_t
+		buf[UNLEN+1];
+	DWORD
+		size = sizeof buf / sizeof(wchar_t);
+
+	if(::GetUserName(buf, &size) == 0)
+		return String();
+
+	return String(String::iterator(buf), String::iterator(buf + size - 1));
+}
+
+String WindowsAPI::SHGetSpecialFolder(sint nFolder)
+{
+	wchar_t
+		buf[MAX_PATH+1];
+	ITEMIDLIST
+		*idl;
+	IMalloc
+		*m;
+
+	SHGetMalloc(&m);
+	if(SHGetSpecialFolderLocation(0, nFolder, &idl) == 0){
+		SHGetPathFromIDList(idl, buf);
+		m->Free(idl);
+	}
+	m->Release();
+
+	return String(buf);
+}
+
+////////////////////////////////////////////////////////////////////////
+
 class ExecuteInfo {
 	typedef ExecuteInfo Self;
 	typedef list<String> Envnames;
@@ -784,10 +946,13 @@ private:
 		_maximize,
 		_minimize;
 
-	static sint system(const String &cmd);
 	static String getenv(const String &name);
 	static sint putenv(const String &name, const String &val);
+	static String get_shell_name();
 	static String system_escape(const String &s);
+	static bool search_path(String &cmd, const String &selfname);
+	sint system(const String &cmd, const String &arg);
+	sint create_process(const String &cmd, const String &arg);
 
 public:
 	ExecuteInfo();
@@ -843,18 +1008,9 @@ ExecuteInfo::ExecuteInfo()
 	_use_path		= false;
 	_gui			= false;
 	_wait			= false;
-#ifdef __CONSOLE__
 	_hide			= false;
-#else
-	_hide			= true;
-#endif
 	_maximize		= false;
 	_minimize		= false;
-}
-
-sint ExecuteInfo::system(const String &cmd)
-{
-	return _wsystem(cmd.c_str());
 }
 
 String ExecuteInfo::getenv(const String &name)
@@ -867,30 +1023,87 @@ sint ExecuteInfo::putenv(const String &name, const String &val)
 	return _wputenv((name + L'=' + val).c_str());
 }
 
-String ExecuteInfo::system_escape(const String &s)
+String ExecuteInfo::get_shell_name()
+{
+	wchar_t
+		*g = _wgetenv(L"COMSPEC");
+
+	if(g)
+		return String(g);
+	else
+		return String("cmd.exe");
+}
+
+bool ExecuteInfo::search_path(String &cmd, const String &_selfname)
 {
 	String
-		r;
+		selfname(_selfname.to_upper()),
+		path,
+		path1,
+		pathext,
+		pathext1,
+		fn;
+	String::iterator
+		b, e,
+		bb, ee;
 	bool
-		in_quote = false;
+		cmd_have_path = cmd.have_path(),
+		cmd_have_ext = cmd.have_ext();
 
-	r.reserve(s.size());
+	path.assign_from_env("PATH");
+	pathext.assign_from_env("PATHEXT");
 
-	for(String::const_iterator i = s.begin() ; i != s.end() ; ++i){
-		wchar_t
-			c = *i;
-
-		if(!in_quote)
-			if(c == L'^' || c == L'<' || c == L'>' || c == L'|' || c == L'&' || c == L'(' || c == L')' || c == L'@')
-				r.append(1, L'^');
-
-		r.append(1, c);
-
-		if(c == L'"')
-			in_quote = in_quote ? false : true;
+	if(!cmd_have_path){
+		for(e = path.begin(), b = e ; e != path.end() ; b = e + 1){
+			e = find(b, path.end(), L';');
+			path1.assign(b, e);
+			path1 = path1.trim();
+			if(path1.size() > 0){
+				path1 = path1.backslash();
+				if(!cmd_have_ext){
+					for(ee = pathext.begin(), bb = ee ; ee != pathext.end() ; bb = ee + 1){
+						ee = find(bb, pathext.end(), L';');
+						pathext1.assign(bb, ee);
+						pathext1 = pathext1.trim();
+						if(pathext1.size() > 0){
+							fn = path1 + cmd + pathext1;
+							if(fn.to_upper() != selfname && executable(fn)){
+								cmd = fn;
+								return true;
+							}
+						}
+					}
+				}else{
+					fn = path1 + cmd;
+					if(fn.to_upper() != selfname && executable(fn)){
+						cmd = fn;
+						return true;
+					}
+				}
+			}
+		}
+	}else{
+		if(!cmd_have_ext){
+			for(ee = pathext.begin(), bb = ee ; ee != pathext.end() ; bb = ee + 1){
+				ee = find(bb, pathext.end(), L';');
+				pathext1.assign(bb, ee);
+				pathext1 = pathext1.trim();
+				if(pathext1.size() > 0){
+					fn = cmd + pathext1;
+					if(fn.to_upper() != selfname && executable(fn)){
+						cmd = fn;
+						return true;
+					}
+				}
+			}
+		}else{
+			if(fn.to_upper() != selfname && executable(cmd)){
+				return true;
+			}
+		}
 	}
 
-	return r;
+	return false;
 }
 
 void ExecuteInfo::add_ev(const ExpandValues::key_type &name, const ExpandValues::mapped_type &val)
@@ -935,7 +1148,144 @@ ExString &ExecuteInfo::set_arg(const String &s)
 ExString &ExecuteInfo::set_chdir(const String &s)
 {
 	// 空文字列も有り得る
-	return _chdir = s.trim();
+	return _chdir = s.trim().doublequote_del();
+}
+
+String ExecuteInfo::system_escape(const String &s)
+{
+	String
+		r;
+	bool
+		in_quote = false;
+
+	r.reserve(s.size());
+
+	for(String::const_iterator i = s.begin() ; i != s.end() ; ++i){
+		wchar_t
+			c = *i;
+
+		if(!in_quote)
+			if(c == L'^' || c == L'<' || c == L'>' || c == L'|' || c == L'&' || c == L'(' || c == L')' || c == L'@')
+				r.append(1, L'^');
+
+		r.append(1, c);
+
+		if(c == L'"')
+			in_quote = in_quote ? false : true;
+	}
+
+	return r;
+}
+
+sint ExecuteInfo::system(const String &cmd, const String &arg)
+{
+	String
+		cl;
+
+	if(internal()){
+		if(chdir().size() > 0)
+			cl += "pushd \"" + chdir().expand(ev()) + "\" && ";
+		cl += cmd;
+	}else{
+		if(gui()){
+			cl += "start \"" + ev("MY_BASENAME") + "\" ";
+			if(chdir().size() > 0)
+				cl += "/d\"" + chdir().expand(ev()) + "\" ";
+
+			if(hide())
+				cl += "/b ";
+			if(wait())
+				cl += "/wait ";
+			if(maximize())
+				cl += "/max ";
+			if(minimize())
+				cl += "/min ";
+		}else{
+			if(chdir().size() > 0)
+				cl += "pushd \"" + chdir().expand(ev()) + "\" && ";
+		}
+		cl += cmd.doublequote();
+	}
+
+	if(arg.size() > 0 && !iswspace(arg[0]))
+		cl.append(1,L' '); // 空白がないとコマンド名とくっついてしまうのでスペースを補う
+	cl += system_escape(arg);
+
+	verbose_out("cmd.exe: " + cl);
+
+	fflush(stdout);
+	fflush(stderr);
+
+	return _wsystem((L'"' + cl + L'"').c_str()); // ここでクォートするとなぜうまくいくのか判らない。cmd.exeの謎
+}
+
+sint ExecuteInfo::create_process(const String &cmd, const String &arg)
+{
+	String
+		cl;
+	STARTUPINFO
+		si;
+	PROCESS_INFORMATION
+		pi;
+	DWORD
+		CreationFlags = 0,
+		ExitCode = 0;
+	sint
+		r = 0;
+
+
+	if(internal()){
+		cl += get_shell_name().doublequote() + " /c" + cmd;
+	}else{
+		cl += cmd.doublequote();
+	}
+
+	if(arg.size() > 0 && !iswspace(arg[0]))
+		cl.append(1,L' '); // 空白がないとコマンド名とくっついてしまうのでスペースを補う
+	cl += arg;
+
+
+	memset(&si, 0, sizeof si);
+	si.cb = sizeof si;
+	memset(&pi, 0, sizeof pi);
+
+	si.dwFlags |= STARTF_FORCEOFFFEEDBACK;
+
+	if(maximize()){
+		si.wShowWindow = SW_SHOWMAXIMIZED;
+		si.dwFlags |= STARTF_USESHOWWINDOW;
+	}
+
+	if(minimize()){
+		si.wShowWindow = SW_SHOWMINIMIZED;
+		si.dwFlags |= STARTF_USESHOWWINDOW;
+	}
+
+// chdir()
+// hide()
+// internal()
+
+	verbose_out("create process: " + cl);
+
+	fflush(stdout);
+	fflush(stderr);
+
+	if(WindowsAPI::CreateProcess(cl, CreationFlags, chdir(), &si, &pi) == 0){
+		error = true;
+		return -2;
+	}
+
+	CloseHandle(pi.hThread);
+	if(gui() && !wait()){
+		CloseHandle(pi.hProcess);
+	}else{
+		WaitForSingleObject(pi.hProcess, INFINITE);
+		GetExitCodeProcess(pi.hProcess, &ExitCode);
+		CloseHandle(pi.hProcess);
+		r = ExitCode;
+	}
+
+	return r;
 }
 
 bool is_exe_or_com()
@@ -948,9 +1298,10 @@ sint ExecuteInfo::execute()
 	String
 		cmd,
 		arge,
-		cl;
+		selfname;
 	bool
-		done = false;
+		done = false,
+		found;
 
 	verbose_out("--- execute ---");
 
@@ -974,7 +1325,7 @@ sint ExecuteInfo::execute()
 	if(exs().size() <= 0){
 		putcerr(PGM_ERR "execute command not defined");
 		error = true;
-		rcode = -2;
+		rcode = -3;
 		return 1;
 	}
 
@@ -986,73 +1337,35 @@ sint ExecuteInfo::execute()
 			putcerr(PGM_WARN "variable not defined: ", *i);
 	}
 
+	arge = arg().expand(ev());
+	selfname = ev("MY_EXENAME");
 	for(ExStrings::const_iterator i = exs().begin() ; i != exs().end() ; ++i){
-		cl.erase();
+		found = false;
 		cmd = i->expand(ev());
-		arge = system_escape(arg().expand(ev()));
-		if(arge.size() > 0 && !iswspace(arge[0]))
-			arge = L' ' + arge; // 空白がないとコマンド名とくっついてしまうのでスペースを補う
 
 		if(internal()){
 			verbose_out("executable: " + cmd + " (internal)");
-			cl += cmd + arge;
+			found = true;
 		}else{
 			if(use_path()){
-
-
-
-
-
-			}else if(executable(cmd)){
+				found = search_path(cmd, selfname);
+			}else if(cmd.to_upper() != selfname.to_upper() && executable(cmd)){
 				verbose_out("executable: " + cmd);
-				if(gui()){
-					cl += "start \"" + ev("MY_BASENAME") + "\" ";
-					if(wait())
-						cl += "/wait ";
-					if(hide())
-						cl += "/b ";
-					if(maximize())
-						cl += "/max ";
-					if(minimize())
-						cl += "/min ";
-				}
-				cl += cmd.doublequote() + arge;
+				found = true;
 			}else{
 				verbose_out("unexecutable: " + cmd);
-				cl.erase(); // for safe
 			}
 		}
 
-		if(cl.size() > 0){
-			if(chdir().size() > 0)
-				cl = "pushd \"" + chdir().expand(ev()) + "\" && " + cl;
-
-			if(is_exe_or_com()){
-				// CreateProcess() で起動
-
-
-			}else{
-				// cmd.exe経由で起動
-
-
+		if(found){
+			if(is_exe_or_com()){	// CreateProcess() で起動
+				rcode = create_process(cmd, arge);
+			}else{					// cmd.exe経由で起動
+				rcode = system(cmd, arge);
 			}
 
-
-
-
-
-
-
-
-
-
-			verbose_out("cmdline: " + cl);
-
-			rcode = system(L'"' + cl + L'"'); // ここでクォートするとなぜうまくいくのか判らない。cmd.exeの謎
-			done = true;
-
 			verbose_out(String().printf("return code: %d", rcode));
-
+			done = true;
 			break;
 		}
 	}
@@ -1085,105 +1398,6 @@ void ExecuteInfo::verbose_out(const String &s)
 {
 	if(verbose())
 		putcout(PGM_DEBUG, s);
-}
-
-////////////////////////////////////////////////////////////////////////
-
-class WindowsAPI {
-public:
-	static String GetClipboardText();
-	static String GetCommandLine()		{ return ::GetCommandLine(); }
-	static String GetComputerName();
-	static String GetTempPath();
-	static String GetUserName();
-	static String SHGetSpecialFolder(sint nFolder);
-};
-
-String WindowsAPI::GetClipboardText()
-{
-	String
-		r;
-	HANDLE
-		h;
-
-	if(::OpenClipboard(NULL) == 0)
-		return String();
-
-	if((h = ::GetClipboardData(CF_UNICODETEXT)) != NULL){
-		r.assign((wchar_t *)::GlobalLock(h));
-		::GlobalUnlock(h);
-	}
-
-	if(::CloseClipboard() == 0)
-		return String();
-
-	// 改行文字等はスペースに置換する
-	for(String::iterator i = r.begin() ; i != r.end() ; ++i)
-		if(iswspace(*i))
-			*i = L' ';
-
-	return r;
-}
-
-String WindowsAPI::GetComputerName()
-{
-	wchar_t
-		buf[MAX_COMPUTERNAME_LENGTH+1];
-	DWORD
-		size = sizeof buf;
-
-	if(::GetComputerName(buf, &size) == 0)
-		return String();
-
-	return String(String::iterator(buf), String::iterator(buf + size));
-}
-
-String WindowsAPI::GetTempPath()
-{
-	String
-		r;
-	DWORD
-		size = ::GetTempPath(0, NULL);
-	wchar_t
-		*buf = new wchar_t[size];
-
-	::GetTempPath(size, buf);
-	r.assign(buf);
-	delete [] buf;
-
-	return r;
-}
-
-String WindowsAPI::GetUserName()
-{
-	wchar_t
-		buf[UNLEN+1];
-	DWORD
-		size = sizeof buf;
-
-	if(::GetUserName(buf, &size) == 0)
-		return String();
-
-	return String(String::iterator(buf), String::iterator(buf + size - 1));
-}
-
-String WindowsAPI::SHGetSpecialFolder(sint nFolder)
-{
-	wchar_t
-		buf[MAX_PATH];
-	LPITEMIDLIST
-		pidl;
-	IMalloc
-		*m;
-
-	SHGetMalloc(&m);
-	if(SHGetSpecialFolderLocation(0, nFolder, &pidl) == 0){
-		SHGetPathFromIDList(pidl, buf);
-		m->Free(pidl);
-	}
-	m->Release();
-
-	return String(buf);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1360,7 +1574,7 @@ void do_inifile_option(IniFileStream &ifs, ExecuteInfo &e, const String &aline)
 	}else{
 		putcout(PGM_ERR "invalid option: ", aline);
 		error = true;
-		rcode = -3;
+		rcode = -4;
 	}
 }
 
@@ -1391,7 +1605,7 @@ void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfos &execinfos, const 
 	if(!ifs.is_open()){
 		putcerr(PGM_ERR "ini file open failed: ", ininame);
 		error = true;
-		rcode = -4;
+		rcode = -5;
 		return;
 	}
 
@@ -1421,7 +1635,7 @@ void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfos &execinfos, const 
 					putcerr(PGM_ERR "invalid section name: ", aline);
 					section = SECTION_NONE;
 					error = true;
-					rcode = -5;
+					rcode = -6;
 				}
 			}else{
 				switch(section){
@@ -1445,15 +1659,17 @@ void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfos &execinfos, const 
 	ifs.close();
 }
 
-void wrapexec_main(const String &exename)
+void wrapexec_main()
 {
 	ExecuteInfo
 		execinfo_default;
 	ExecuteInfos
 		execinfos;
 	String
+		exename,
 		ininame;
 
+	exename = WindowsAPI::GetModuleFileName();
 	ininame = IniFileStream::determine_filename(exename);
 
 	setup_expandvalues(execinfo_default, exename, ininame);
@@ -1466,14 +1682,9 @@ void wrapexec_main(const String &exename)
 
 #ifdef __MINGW32__
 
-sint main(sint ac, char *[])
+sint main(sint, char *[])
 {
-	wchar_t
-		**av = ::CommandLineToArgvW(::GetCommandLine(), &ac);
-
-	wrapexec_main(av[0]); // BUG : フルパス化されていない
-
-	GlobalFree(av);
+	wrapexec_main();
 
 	return rcode;
 }
@@ -1482,24 +1693,29 @@ sint main(sint ac, char *[])
 
 #ifdef __CONSOLE__
 
-sint wmain(sint, wchar_t *av[])
+sint wmain(sint, wchar_t *[])
 {
-	wrapexec_main(av[0]);
+	wrapexec_main();
 
 	return rcode;
 }
 
 #else // __CONSOLE__
 
-extern "C"
-sint WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR cl, int)
+// ダミーのメッセージを送受信することで、プログラムが動き出したことをOSに伝える
+void dummy_message()
 {
-	sint
-		ac = 0;
-	wchar_t
-		**av = ::CommandLineToArgvW(cl, &ac);
+	MSG msg;
+	PostMessage(NULL, WM_APP, 0, 0);
+	GetMessage(&msg, NULL, WM_APP, WM_APP);
+}
 
-	wrapexec_main(av[0]);
+extern "C"
+sint WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int)
+{
+	dummy_message();
+
+	wrapexec_main();
 
 	return rcode;
 }
