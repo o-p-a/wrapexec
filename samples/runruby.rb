@@ -1,4 +1,4 @@
-#!ruby
+#! /usr/bin/ruby
 
 # Example for wrapexec. Replace your script here.
 

@@ -1,4 +1,4 @@
-#!perl
+#! /usr/bin/perl
 
 # Example for wrapexec. Replace your script here.
 
