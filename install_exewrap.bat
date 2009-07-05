@@ -10,9 +10,11 @@ if not exist "wrapexecw.exe" (
 )
 :
 call :exec1 C "samples\bat2exe.exe"
+call :exec1 C "samples\js2exe.exe"
 call :exec1 C "samples\pl2exe.exe"
 call :exec1 C "samples\rb2exe.exe"
 call :exec1 C "samples\runbatch.exe"
+call :exec1 C "samples\runjscript.exe"
 call :exec1 C "samples\runperl.exe"
 call :exec1 C "samples\runruby.exe"
 :
