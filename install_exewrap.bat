@@ -21,12 +21,14 @@ call :exec1 C "samples\runruby.exe"
 call :exec1 G "\usrlocal\bat\CmdPrompt.exe"
 call :exec1 G "\usrlocal\bat\emacs.exe"
 call :exec1 G "\usrlocal\bat\eval.exe"
+call :exec1 G "\usrlocal\bat\ExtractArchive.exe"
 call :exec1 G "\usrlocal\bat\gv.exe"
 call :exec1 G "\usrlocal\bat\ped.exe"
 call :exec1 G "\usrlocal\bat\pedc.exe"
 call :exec1 C "\usrlocal\bat\irb.exe"
 call :exec1 C "\usrlocal\bat\perl.exe"
 call :exec1 C "\usrlocal\bat\ruby.exe"
+call :exec1 G "\usrlocal\bat\WinMerge.exe"
 :
 goto :eof
 
@@ -36,8 +38,17 @@ if /i "%~1" == "C" (
 ) else if /i "%~1" == "G" (
 	set SRC=wrapexecw.exe
 ) else (
-	echo %~n0: unknown action
+	echo %~n0: unknown action: "%~1"
 	goto :eof
 )
-echo %SRC% -^> %~2
+if exist "%~dpn2.ini" (
+	goto found1
+) else if exist "%~dpn2.bat" (
+	goto found1
+) else (
+	echo %~n0: not found .ini or .bat: "%~2"
+	goto :eof
+)
+:found1
+echo "%SRC%" -^> "%~2"
 copy /y "%SRC%" "%~2"

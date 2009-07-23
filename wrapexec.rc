@@ -37,6 +37,6 @@ BEGIN
 	END
 END
 
-2	ICON	"wrapexec1.ico"
-3	ICON	"wrapexec2.ico"
+1	ICON	"wrapexec1.ico"
+2	ICON	"wrapexec2.ico"
 
