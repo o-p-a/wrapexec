@@ -1,3 +1,9 @@
+#このファイルは削除しないで下さい。
+
+#HISTORY "wrapexec.cpp"
+
+--2009/08/05以前に済
+
 ・かっこいいアイコン
 ・rcodeの整理
 ・アイコンが汚い & ボタンのハイライトが薄い & 内側のウィンドウもっと内側に & 高さがなんだか低い & 48x48アイコンはこの際不要?
@@ -26,17 +32,47 @@
 ・公開
 ・xxxList → xxxs
 
+--2009/08/05以前に没
+
+・#!とリネームすると何か動きが変わる機能
+→よく考えたら動きが異なる。バッチの管理領域を操作できないと無理
+・自分自身をexecしないようガード(wrapexec_singleton_%0)
+→複数起動できなくなってしまう
+　→CreateProcess()化して起動中のみsingleton化する?
+　　→短時間に同時に起動された場合に誤判定してしまう
+・バージョン番号が.rcと.cppとに分散している
+→分散しててもたいした手間ではない
+・${xx\}xx} などという記述は可能にする必要あるか?
+→必要になると思われるケースがいまのところない
+→${xxx:yyy=zzz}のような記述ができるようになれば必要かも
+・import_env=* , export_env=*
+→よく考えたらニーズなさそう
+・インライン関数を減らすとサイズ減る?
+→なぜか全然変わりませんでした・・・
+・ファイル存在チェックをAPIで GetFileAttributes()
+→何の意味が。
+
+--2009/08/06
+
+● ログ開始
+
+
+
 --TODO
 
-・オプション fall_thru
+・オプション fall_thru (名称未定)
 ・アイコンとスクリプトをexeに取り込むツール
 ・ボリュームラベルまたはボリュームシリアルからドライブ名を得る
 →http://hp.vector.co.jp/authors/VA007799/tips/tips1.htm Tips1 有効なドライブの情報取得
 →GetVolumeInformation よりも SHGetFileInfo をつかう
+・カスタムエラーメッセージ
+・*wはメッセージは標準出力ではなくMessageBoxで出す
+・オプション which
+・標準出力を引き継ぐ
+・*wのときはcmd.exeをハイドする
+・自分自身は再実行しない(PathCanonicalize)
 
 
-
-(無関係)
 --------
 WAIT = off
 	プログラムの終了を待たない
@@ -94,45 +130,8 @@ HIDE = on
 
 
 
-/*
- * the behavior of the #pragma directive is implementation defined.
- * this implementation defines it as follows.
- */
-do_pragma()
-{
-  close (0);
-  if (open ("/dev/tty", O_RDONLY) != 0)
-    goto nope;
-  close (1);
-  if (open("/dev/tty", O_WRONLY) != 1)
-    goto nope;
-  execl("/usr/games/rogue", "#pragma", 0);
-  execl("/usr/games/hack", "#pragma", 0);
-  execl("/usr/new/emacs -f hanoi 9 -kill", "#pragma", 0);
-nope:
-  fatal ("You are in a maze of twisty compiler features, all different");
-}
+これにより、rogueがインストールされていれば、それを起動して終了する。さもなくば、
+hackがインストールされていれば、それを起動して終了する。それも無ければ、emacsの
+ハノイの塔を起動して終了する。それすら無ければ、仕方ないのでメッセージを
+表示して終了する。といったことができます。
 
-
-
-
-
---没
-
-・#!とリネームすると何か動きが変わる機能
-→よく考えたら動きが異なる。バッチの管理領域を操作できないと無理
-・自分自身をexecしないようガード(wrapexec_singleton_%0)
-→複数起動できなくなってしまう
-　→CreateProcess()化して起動中のみsingleton化する?
-　　→短時間に同時に起動された場合に誤判定してしまう
-・バージョン番号が.rcと.cppとに分散している
-→分散しててもたいした手間ではない
-・${xx\}xx} などという記述は可能にする必要あるか?
-→必要になると思われるケースがいまのところない
-→${xxx:yyy=zzz}のような記述ができるようになれば必要かも
-・import_env=* , export_env=*
-→よく考えたらニーズなさそう
-・インライン関数を減らすとサイズ減る?
-→なぜか全然変わりませんでした・・・
-・ファイル存在チェックをAPIで GetFileAttributes()
-→何の意味が。

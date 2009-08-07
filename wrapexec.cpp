@@ -810,7 +810,7 @@ bool WindowsAPI::CreateProcess(const String &cmd, DWORD CreationFlags, const Str
 	copy(cmd.begin(), cmd.end(), cmd_c_str);
 	cmd_c_str[cmd.size()] = 0;
 
-	r = ::CreateProcess(NULL, cmd_c_str, NULL, NULL, FALSE, CreationFlags, NULL, (wd.size()>0 ? wd.c_str() : NULL), si, pi);
+	r = ::CreateProcess(NULL, cmd_c_str, NULL, NULL, TRUE, CreationFlags, NULL, (wd.size()>0 ? wd.c_str() : NULL), si, pi);
 
 	delete [] cmd_c_str;
 

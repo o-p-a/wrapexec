@@ -504,7 +504,7 @@
 ・サポート
 
 	このプログラムの公式webページは
-	http://sourceforge.jp/projects/wrapexec/simple/ です。
+	http://sourceforge.jp/projects/wrapexec/ です。
 
 	ダウンロードは
 	http://sourceforge.jp/projects/wrapexec/releases/ から行えます。
