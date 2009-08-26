@@ -1,4 +1,4 @@
-@if(0)==(0) echo off & goto BATCH_BEGIN
+@if (0)==(0) echo off & goto BATCH_BEGIN
 [option]
 arg = //E:JScript //Nologo "${MY_ININAME}"${ARG}
 use_path
@@ -6,11 +6,7 @@ use_path
 cscript
 [end]
 :BATCH_BEGIN
-if %~d0 == ~d0 goto OLD_CMD
-cscript //E:JScript //Nologo "%~f0" %*
-goto :eof
-:OLD_CMD
-echo Cannot determine script path. Run script directly.
+cscript //E:JScript //Nologo %0 %*
 goto :eof
 @end
 //------------------------------------------------------
@@ -25,4 +21,3 @@ function main()
 
 WScript.Quit(main());
 
-//:BATCH_END

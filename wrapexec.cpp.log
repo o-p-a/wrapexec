@@ -1,137 +1,139 @@
-#���̃t�@�C���͍폜���Ȃ��ŉ������B
+﻿#このファイルは削除しないで下さい。
 
 #HISTORY "wrapexec.cpp"
 
---2009/08/05�ȑO�ɍ�
+--2009/08/05以前に済
 
-�E�����������A�C�R��
-�Ercode�̐���
-�E�A�C�R�������� & �{�^���̃n�C���C�g������ & �����̃E�B���h�E�����Ɠ����� & �������Ȃ񂾂��Ⴂ & 48x48�A�C�R���͂��̍ەs�v?
-�Esvn�ŊǗ�
-�E���s����R�}���h���� & | �����܂�ł����ꍇ�̑Ή�������(^�ŃG�X�P�[�v)
-�E${xxx} �����łȂ� $(xxx) $[xxx] ���L�q�\�ɂ���
-�E�p�X�̖����ɂ͌��� '\'������悤�ɂ���
-�E${ARGV_ALL} �� ${ARG}
-�E${SYS_*}
-�E${USER_*}
-�E${PROGRAM_*}
-�E�I�v�V���� wait
-�E';'���R�����g�J�n�����Ƃ��Ĉ���
-�E���ϐ��̈��� import_env
-�E���ϐ��̈��� export_env
-�E���ϐ�����ł͂Ȃ��AAPI����e��t�H���_���擾���� SHGetSpecialFolderLocation��
-�E���[�U����API����擾����
-�E�R���s���[�^����API����擾����
-�E[EOF]�̏���
-�Ec++��wcout,wcerr����߂�c��stdout,stderr���g���悤�ɂ���
-�Eifstream����߂�fopen()�������悤�ɂ���
-�E�����R�}���h�̎��s�ɑΉ�
-�E�h�L�������g�쐬
-�E�T���v����.ini�t�@�C���쐬
-�E�^�C�g���摜
-�E���J
-�ExxxList �� xxxs
+・かっこいいアイコン
+・rcodeの整理
+・アイコンが汚い & ボタンのハイライトが薄い & 内側のウィンドウもっと内側に & 高さがなんだか低い & 48x48アイコンはこの際不要?
+・svnで管理
+・実行するコマンド等に & | 等を含んでいた場合の対応をした(^でエスケープ)
+・${xxx} だけでなく $(xxx) $[xxx] も記述可能にした
+・パスの末尾には原則 '\'をつけるようにした
+・${ARGV_ALL} → ${ARG}
+・${SYS_*}
+・${USER_*}
+・${PROGRAM_*}
+・オプション wait
+・';'もコメント開始文字として扱う
+・環境変数の扱い import_env
+・環境変数の扱い export_env
+・環境変数からではなく、APIから各種フォルダを取得する SHGetSpecialFolderLocation他
+・ユーザ名をAPIから取得する
+・コンピュータ名をAPIから取得する
+・[EOF]の処理
+・c++のwcout,wcerrをやめてcのstdout,stderrを使うようにした
+・ifstreamをやめてfopen()をつかうようにした
+・複数コマンドの実行に対応
+・ドキュメント作成
+・サンプルの.iniファイル作成
+・タイトル画像
+・公開
+・xxxList → xxxs
 
---2009/08/05�ȑO�ɖv
+--2009/08/05以前に没
 
-�E#!�ƃ��l�[������Ɖ����������ς��@�\
-���悭�l�����瓮�����قȂ�B�o�b�`�̊Ǘ��̈�𑀍�ł��Ȃ��Ɩ���
-�E�������g��exec���Ȃ��悤�K�[�h(wrapexec_singleton_%0)
-�������N���ł��Ȃ��Ȃ��Ă��܂�
-�@��CreateProcess()�����ċN�����̂�singleton������?
-�@�@���Z���Ԃɓ����ɋN�����ꂽ�ꍇ�Ɍ딻�肵�Ă��܂�
-�E�o�[�W�����ԍ���.rc��.cpp�Ƃɕ��U���Ă���
-�����U���ĂĂ�����������Ԃł͂Ȃ�
-�E${xx\}xx} �ȂǂƂ����L�q�͉\�ɂ���K�v���邩?
-���K�v�ɂȂ�Ǝv����P�[�X�����܂̂Ƃ���Ȃ�
-��${xxx:yyy=zzz}�̂悤�ȋL�q���ł���悤�ɂȂ�ΕK�v����
-�Eimport_env=* , export_env=*
-���悭�l������j�[�Y�Ȃ�����
-�E�C�����C���֐������炷�ƃT�C�Y����?
-���Ȃ����S�R�ς��܂���ł����E�E�E
-�E�t�@�C�����݃`�F�b�N��API�� GetFileAttributes()
-�����̈Ӗ����B
+・#!とリネームすると何か動きが変わる機能
+→よく考えたら動きが異なる。バッチの管理領域を操作できないと無理
+・自分自身をexecしないようガード(wrapexec_singleton_%0)
+→複数起動できなくなってしまう
+　→CreateProcess()化して起動中のみsingleton化する?
+　　→短時間に同時に起動された場合に誤判定してしまう
+・バージョン番号が.rcと.cppとに分散している
+→分散しててもたいした手間ではない
+・${xx\}xx} などという記述は可能にする必要あるか?
+→必要になると思われるケースがいまのところない
+→${xxx:yyy=zzz}のような記述ができるようになれば必要かも
+・import_env=* , export_env=*
+→よく考えたらニーズなさそう
+・インライン関数を減らすとサイズ減る?
+→なぜか全然変わりませんでした・・・
+・ファイル存在チェックをAPIで GetFileAttributes()
+→何の意味が。
 
 --2009/08/06
 
-�� ���O�J�n
+● ログ開始
 
 
 
 --TODO
 
-�E�I�v�V���� fall_thru (���̖���)
-�E�A�C�R���ƃX�N���v�g��exe�Ɏ�荞�ރc�[��
-�E�{�����[�����x���܂��̓{�����[���V���A������h���C�u���𓾂�
-��http://hp.vector.co.jp/authors/VA007799/tips/tips1.htm Tips1 �L���ȃh���C�u�̏��擾
-��GetVolumeInformation ���� SHGetFileInfo ������
-�E�J�X�^���G���[���b�Z�[�W
-�E*w�̓��b�Z�[�W�͕W���o�͂ł͂Ȃ�MessageBox�ŏo��
-�E�I�v�V���� which
-�E�W���o�͂������p��
-�E*w�̂Ƃ���cmd.exe���n�C�h����
-�E�������g�͍Ď��s���Ȃ�(PathCanonicalize)
+・オプション fall_thru (名称未定)
+・アイコンとスクリプトをexeに取り込むツール
+・ボリュームラベルまたはボリュームシリアルからドライブ名を得る
+→http://hp.vector.co.jp/authors/VA007799/tips/tips1.htm Tips1 有効なドライブの情報取得
+→GetVolumeInformation よりも SHGetFileInfo をつかう
+・カスタムエラーメッセージ
+・*wはメッセージは標準出力ではなくMessageBoxで出す
+・オプション which
+・標準出力を引き継ぐ
+・*wのときはcmd.exeをハイドする
+・自分自身は再実行しない(PathCanonicalize)
 
 
 --------
 WAIT = off
-	�v���O�����̏I����҂��Ȃ�
+	プログラムの終了を待たない
 WAIT = on
-	�v���O�����̏I����҂�
+	プログラムの終了を待つ
 
 
 
 
 --------
 INTERNAL = off
-	���s�Ώۂ̑��݊m�F������
-	cmd.exe�o�R�Ŏ��s���� �� ���� ���ڎ��s����
+	実行対象の存在確認をする
+	cmd.exe経由で実行する ※ 現状 直接実行する
 INTERNAL = on
-	���s�Ώۂ̑��݊m�F�����Ȃ�
-	cmd.exe�o�R�Ŏ��s����
+	実行対象の存在確認をしない
+	cmd.exe経由で実行する
 
 --------
 CHDIR != UNC PATH
-	���ڎ��s����
+	直接実行する
 
 CHDIR == UNC PATH
-	cmd.exe�o�R�Ŏ��s����
+	cmd.exe経由で実行する
 
 --------
 HIDE = off
-	�R���\�[���E�B���h�E�𐶐����Ȃ�
+	コンソールウィンドウを生成しない
 HIDE = on
-	�R���\�[���E�B���h�E�𐶐�����
+	コンソールウィンドウを生成する
 
 
 
 --------
-�G�N�X�v���[������_�u���N���b�N(�e�R���\�[���Ȃ�)
-	��GUI=off�̏ꍇ
-		�R���\�[�����J��
-		���b�Z�[�W�͕W���o�͂�
-	��GUI=on�̏ꍇ
-		�R���\�[�����J���Ȃ�
-		���b�Z�[�W��MessageBox��
+エクスプローラからダブルクリック(親コンソールなし)
+	→GUI=offの場合
+		コンソールを開く
+		メッセージは標準出力へ
+	→GUI=onの場合
+		コンソールを開かない
+		メッセージはMessageBoxへ
 
-�R���\�[��������s(�e�R���\�[������)
-	��GUI=off�̏ꍇ
-		�e�R���\�[�����ė��p
-		���b�Z�[�W�͕W���o�͂�
-	��GUI=on�̏ꍇ
-		�e�R���\�[�����ė��p(�Ă������g�p���Ȃ�)
-		���b�Z�[�W��MessageBox��
+コンソールから実行(親コンソールあり)
+	→GUI=offの場合
+		親コンソールを再利用
+		メッセージは標準出力へ
+	→GUI=onの場合
+		親コンソールを再利用(ていうか使用しない)
+		メッセージはMessageBoxへ
 
-	��GUI=off�̏ꍇ
-		�f�t�H���g�� wait = on (�I����҂�)
-	��GUI=on�̏ꍇ
-		�f�t�H���g�� wait = on (�I����҂�) �� ���� off (�҂��Ȃ�)
-
-
+	→GUI=offの場合
+		デフォルトで wait = on (終了を待つ)
+	→GUI=onの場合
+		デフォルトで wait = on (終了を待つ) ※ 現状 off (待たない)
 
 
-����ɂ��Arogue���C���X�g�[������Ă���΁A������N�����ďI������B�����Ȃ��΁A
-hack���C���X�g�[������Ă���΁A������N�����ďI������B�����������΁Aemacs��
-�n�m�C�̓����N�����ďI������B���ꂷ�疳����΁A�d���Ȃ��̂Ń��b�Z�[�W��
-�\�����ďI������B�Ƃ��������Ƃ��ł��܂��B
+
+
+これにより、rogueがインストールされていれば、それを起動して終了する。さもなくば、
+hackがインストールされていれば、それを起動して終了する。それも無ければ、emacsの
+ハノイの塔を起動して終了する。それすら無ければ、仕方ないのでメッセージを
+表示して終了する。といったことができます。
+
+☣☢☠☎☏☤☮☯☸♨♪♫✇✌✓✔✕✖✗✘✡〠
 
