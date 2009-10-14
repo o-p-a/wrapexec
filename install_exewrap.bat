@@ -1,5 +1,5 @@
 @echo off
-:
+
 if not exist "wrapexec.exe" (
 	echo %~n0: wrapexec.exe not found
 	goto :eof
@@ -8,7 +8,7 @@ if not exist "wrapexecw.exe" (
 	echo %~n0: wrapexecw.exe not found
 	goto :eof
 )
-:
+
 call :exec1 C "samples\bat2exe"
 call :exec1 C "samples\js2exe"
 call :exec1 C "samples\pl2exe"
@@ -17,29 +17,32 @@ call :exec1 C "samples\runbatch"
 call :exec1 C "samples\runjscript"
 call :exec1 C "samples\runperl"
 call :exec1 C "samples\runruby"
-:
+
 call :exec1 C "\usrlocal\bat\DeleteIfExist"
+call :exec1 C "\usrlocal\bat\irb"
 call :exec1 C "\usrlocal\bat\more"
 call :exec1 C "\usrlocal\bat\MoveWithDatetime"
 call :exec1 C "\usrlocal\bat\NetUse"
 call :exec1 C "\usrlocal\bat\NetUseDeleteAll"
-call :exec1 C "\usrlocal\bat\StartDaemon"
-call :exec1 C "\usrlocal\bat\TimeSync"
-call :exec1 C "\usrlocal\bat\irb"
 call :exec1 C "\usrlocal\bat\perl"
 call :exec1 C "\usrlocal\bat\ruby"
+call :exec1 C "\usrlocal\bat\StartDaemon"
+call :exec1 C "\usrlocal\bat\TimeSync"
+call :exec1 C "\usrlocal\bat\vi"
+
 call :exec1 G "\usrlocal\bat\CmdPrompt"
-call :exec1 G "\usrlocal\bat\ExtractArchive"
-call :exec1 G "\usrlocal\bat\TeraTerm"
-call :exec1 G "\usrlocal\bat\UnplugDrive2"
-call :exec1 G "\usrlocal\bat\WinMerge"
 call :exec1 G "\usrlocal\bat\emacs"
 call :exec1 G "\usrlocal\bat\eval"
+call :exec1 G "\usrlocal\bat\ExtractArchive"
 call :exec1 G "\usrlocal\bat\gv"
+call :exec1 G "\usrlocal\bat\gvim"
 call :exec1 G "\usrlocal\bat\ped"
 call :exec1 G "\usrlocal\bat\pedc"
+call :exec1 G "\usrlocal\bat\TeraTerm"
+call :exec1 G "\usrlocal\bat\UnplugDrive2"
 call :exec1 G "\usrlocal\bat\vncviewer"
-:
+call :exec1 G "\usrlocal\bat\WinMerge"
+
 goto :eof
 
 :exec1
