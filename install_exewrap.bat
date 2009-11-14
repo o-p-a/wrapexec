@@ -1,4 +1,7 @@
 @echo off
+title %~n0
+setlocal
+pushd "%~dp0"
 
 if not exist "wrapexec.exe" (
 	echo %~n0: wrapexec.exe not found
@@ -20,13 +23,13 @@ call :exec1 C "samples\runruby"
 
 call :exec1 C "\usrlocal\bat\DeleteIfExist"
 call :exec1 C "\usrlocal\bat\irb"
+call :exec1 C "\usrlocal\bat\MakeShortcut"
 call :exec1 C "\usrlocal\bat\more"
 call :exec1 C "\usrlocal\bat\MoveWithDatetime"
 call :exec1 C "\usrlocal\bat\NetUse"
 call :exec1 C "\usrlocal\bat\NetUseDeleteAll"
 call :exec1 C "\usrlocal\bat\perl"
 call :exec1 C "\usrlocal\bat\ruby"
-call :exec1 C "\usrlocal\bat\StartDaemon"
 call :exec1 C "\usrlocal\bat\TimeSync"
 call :exec1 C "\usrlocal\bat\vi"
 
@@ -36,13 +39,23 @@ call :exec1 G "\usrlocal\bat\eval"
 call :exec1 G "\usrlocal\bat\ExtractArchive"
 call :exec1 G "\usrlocal\bat\gv"
 call :exec1 G "\usrlocal\bat\gvim"
+call :exec1 G "\usrlocal\bat\MicrosoftExcel"
+call :exec1 G "\usrlocal\bat\MicrosoftWord"
+call :exec1 G "\usrlocal\bat\mplayer"
+call :exec1 G "\usrlocal\bat\mplayerc"
+call :exec1 G "\usrlocal\bat\PdfViewer"
 call :exec1 G "\usrlocal\bat\ped"
 call :exec1 G "\usrlocal\bat\pedc"
+call :exec1 G "\usrlocal\bat\pedTaskTray"
+call :exec1 G "\usrlocal\bat\PuTTY"
 call :exec1 G "\usrlocal\bat\TeraTerm"
 call :exec1 G "\usrlocal\bat\UnplugDrive2"
+call :exec1 G "\usrlocal\bat\ViX"
 call :exec1 G "\usrlocal\bat\vncviewer"
 call :exec1 G "\usrlocal\bat\WinMerge"
 
+popd
+endlocal
 goto :eof
 
 :exec1

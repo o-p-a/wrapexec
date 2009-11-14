@@ -1,4 +1,5 @@
 #! /usr/bin/ruby
+# coding: US-ASCII
 
 # Example for wrapexec. Replace your script here.
 

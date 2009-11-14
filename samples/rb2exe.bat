@@ -11,7 +11,7 @@ ruby
 @goto :eof
 --------------------------------------------------------
 #! /usr/bin/ruby
-# coding: UTF-8
+# coding: US-ASCII
 
 # Example for wrapexec. Replace your script here.
 
