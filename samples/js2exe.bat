@@ -1,4 +1,4 @@
-@if (0)==(0) echo off & goto BATCH_BEGIN
+@if (0)==(0) echo off & goto BATCH_BEGIN & rem vim:set ft=JavaScript : -*- coding:US-ASCII mode:JavaScript -*-
 [option]
 arg = //E:JScript //Nologo "${MY_ININAME}"${ARG}
 use_path

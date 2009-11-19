@@ -1,14 +1,12 @@
-@rem = '--*-Ruby-*--
-@goto BATCH_BEGIN
+@rem vim:set ft=Ruby : -*- coding:US-ASCII mode:Ruby -*-
+@ruby -x -- "%~f0" %*
+@goto :eof
 [option]
 arg = -x -- "${MY_ININAME}"${ARG}
 use_path
 [exec]
 ruby
 [end]
-:BATCH_BEGIN
-@ruby -x -- "%~f0" %*
-@goto :eof
 --------------------------------------------------------
 #! /usr/bin/ruby
 # coding: US-ASCII

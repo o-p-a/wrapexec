@@ -1,4 +1,5 @@
 #! /usr/bin/perl
+# vim:set ft=Perl : -*- coding:US-ASCII mode:Perl -*-
 
 # Example for wrapexec. Replace your script here.
 

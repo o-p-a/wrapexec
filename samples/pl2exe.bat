@@ -1,14 +1,12 @@
-@rem = '--*-Perl-*--
-@goto BATCH_BEGIN
+@rem vim:set ft=Perl : -*- coding:US-ASCII mode:Perl -*-
+@perl -x -- "%~f0" %*
+@goto :eof
 [option]
 arg = -x -- "${MY_ININAME}"${ARG}
 use_path
 [exec]
 perl
 [end]
-:BATCH_BEGIN
-@perl -x -- "%~f0" %*
-@goto :eof
 --------------------------------------------------------
 #! /usr/bin/perl
 #line 14

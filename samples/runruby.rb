@@ -1,5 +1,5 @@
 #! /usr/bin/ruby
-# coding: US-ASCII
+# vim:set ft=Ruby : -*- coding:US-ASCII mode:Ruby -*-
 
 # Example for wrapexec. Replace your script here.
 

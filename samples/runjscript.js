@@ -1,3 +1,5 @@
+// vim:set ft=JavaScript : -*- coding:US-ASCII mode:JavaScript -*-
+
 // Example for wrapexec. Replace your script here.
 
 function main()
