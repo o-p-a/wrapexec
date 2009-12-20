@@ -9,6 +9,8 @@
 #include <map>
 #include <algorithm>
 #include <cstdio>
+#include <dir>
+#include <io>
 
 #include <windows.h>
 #include <shlobj.h>
@@ -75,10 +77,30 @@ inline bool isbackslash(wchar_t c)
 	return c == L'\\' || c == L'/';
 }
 
-bool readable(const wstring &filename)
+bool file_is_exist(const wchar_t *filename)
+{
+#if 1
+	_wffblk ff;
+	sint r;
+
+	r = _wfindfirst(filename, &ff, FA_NORMAL + FA_HIDDEN + FA_SYSTEM);
+	_wfindclose(&ff);
+
+	return r == 0;
+#else
+	return _waccess(filename, 0) == 0;
+#endif
+}
+
+inline bool file_is_exist(const wstring &filename)
+{
+	return file_is_exist(filename.c_str());
+}
+
+bool _file_is_readable(const wchar_t *filename)
 {
 	FILE
-		*fp = _wfopen(filename.c_str(), L"rb");
+		*fp = _wfopen(filename, L"rb");
 
 	if(fp != NULL){
 		fclose(fp);
@@ -88,9 +110,22 @@ bool readable(const wstring &filename)
 	return false;
 }
 
-inline bool executable(const wstring &filename)
+bool file_is_readable(const wchar_t *filename)
 {
-	return readable(filename);
+	if(!file_is_exist(filename))
+		return false;
+
+	return _file_is_readable(filename);
+}
+
+inline bool file_is_readable(const wstring &filename)
+{
+	return file_is_readable(filename.c_str());
+}
+
+inline bool file_is_executable(const wstring &filename)
+{
+	return file_is_readable(filename.c_str());
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -564,10 +599,10 @@ String IniFileStream::determine_filename(const String &exename)
 	String
 		r;
 
-	if(readable(r = exename.subext(".ini")))
+	if(file_is_readable(r = exename.subext(".ini")))
 		return r;
 
-	if(readable(r = exename.subext(".bat")))
+	if(file_is_readable(r = exename.subext(".bat")))
 		return r;
 
 	return exename.subext(".ini"); /* default (but not found) */
@@ -1061,21 +1096,23 @@ bool ExecuteInfo::search_path(String &cmd, const String &_selfname)
 			if(path1.size() > 0){
 				path1 = path1.backslash();
 				if(!cmd_have_ext){
-					for(ee = pathext.begin(), bb = ee ; ee != pathext.end() ; bb = ee + 1){
-						ee = find(bb, pathext.end(), L';');
-						pathext1.assign(bb, ee);
-						pathext1 = pathext1.trim();
-						if(pathext1.size() > 0){
-							fn = path1 + cmd + pathext1;
-							if(fn.to_upper() != selfname && executable(fn)){
-								cmd = fn;
-								return true;
+					if(file_is_exist(path1 + cmd + ".*")){
+						for(ee = pathext.begin(), bb = ee ; ee != pathext.end() ; bb = ee + 1){
+							ee = find(bb, pathext.end(), L';');
+							pathext1.assign(bb, ee);
+							pathext1 = pathext1.trim();
+							if(pathext1.size() > 0){
+								fn = path1 + cmd + pathext1;
+								if(fn.to_upper() != selfname && file_is_executable(fn)){
+									cmd = fn;
+									return true;
+								}
 							}
 						}
 					}
 				}else{
 					fn = path1 + cmd;
-					if(fn.to_upper() != selfname && executable(fn)){
+					if(fn.to_upper() != selfname && file_is_executable(fn)){
 						cmd = fn;
 						return true;
 					}
@@ -1084,20 +1121,22 @@ bool ExecuteInfo::search_path(String &cmd, const String &_selfname)
 		}
 	}else{
 		if(!cmd_have_ext){
-			for(ee = pathext.begin(), bb = ee ; ee != pathext.end() ; bb = ee + 1){
-				ee = find(bb, pathext.end(), L';');
-				pathext1.assign(bb, ee);
-				pathext1 = pathext1.trim();
-				if(pathext1.size() > 0){
-					fn = cmd + pathext1;
-					if(fn.to_upper() != selfname && executable(fn)){
-						cmd = fn;
-						return true;
+			if(file_is_exist(cmd + ".*")){
+				for(ee = pathext.begin(), bb = ee ; ee != pathext.end() ; bb = ee + 1){
+					ee = find(bb, pathext.end(), L';');
+					pathext1.assign(bb, ee);
+					pathext1 = pathext1.trim();
+					if(pathext1.size() > 0){
+						fn = cmd + pathext1;
+						if(fn.to_upper() != selfname && file_is_executable(fn)){
+							cmd = fn;
+							return true;
+						}
 					}
 				}
 			}
 		}else{
-			if(fn.to_upper() != selfname && executable(cmd)){
+			if(cmd.to_upper() != selfname && file_is_executable(cmd)){
 				return true;
 			}
 		}
@@ -1349,7 +1388,7 @@ sint ExecuteInfo::execute()
 		}else{
 			if(use_path()){
 				found = search_path(cmd, selfname);
-			}else if(cmd.to_upper() != selfname.to_upper() && executable(cmd)){
+			}else if(cmd.to_upper() != selfname.to_upper() && file_is_executable(cmd)){
 				verbose_out("executable: " + cmd);
 				found = true;
 			}else{
@@ -1674,10 +1713,10 @@ void wrapexec_main()
 
 	setup_expandvalues(execinfo_default, exename, ininame);
 
-	load_inifile(execinfo_default, execinfos, ininame);
+//	load_inifile(execinfo_default, execinfos, ininame);
 
-	for(ExecuteInfos::iterator i = execinfos.begin() ; !error && i != execinfos.end() ; ++i)
-		i->execute();
+//	for(ExecuteInfos::iterator i = execinfos.begin() ; !error && i != execinfos.end() ; ++i)
+//		i->execute();
 }
 
 #ifdef __MINGW32__
