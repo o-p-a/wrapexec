@@ -21,7 +21,7 @@
 #define PGM_INFO			PGM ": "
 #define PGM_WARN			PGM " warning: "
 #define PGM_ERR				PGM " error: "
-#define VERSTR				"1.01"
+#define VERSTR				"1.02"
 
 #define CREDIT2009			"Copyright (c) 2009 by opa"
 
@@ -1713,10 +1713,10 @@ void wrapexec_main()
 
 	setup_expandvalues(execinfo_default, exename, ininame);
 
-//	load_inifile(execinfo_default, execinfos, ininame);
+	load_inifile(execinfo_default, execinfos, ininame);
 
-//	for(ExecuteInfos::iterator i = execinfos.begin() ; !error && i != execinfos.end() ; ++i)
-//		i->execute();
+	for(ExecuteInfos::iterator i = execinfos.begin() ; !error && i != execinfos.end() ; ++i)
+		i->execute();
 }
 
 #ifdef __MINGW32__

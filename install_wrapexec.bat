@@ -54,6 +54,7 @@ call :exec1 G "\usrlocal\bat\TeraTerm"
 call :exec1 G "\usrlocal\bat\UnplugDrive2"
 call :exec1 G "\usrlocal\bat\ViX"
 call :exec1 G "\usrlocal\bat\vncviewer"
+call :exec1 G "\usrlocal\bat\WinDVD"
 call :exec1 G "\usrlocal\bat\WinMerge"
 
 popd
