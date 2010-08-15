@@ -21,9 +21,9 @@
 #define PGM_INFO			PGM ": "
 #define PGM_WARN			PGM " warning: "
 #define PGM_ERR				PGM " error: "
-#define VERSTR				"1.02"
+#define VERSTR				"1.03"
 
-#define CREDIT2009			"Copyright (c) 2009 by opa"
+#define CREDIT2009			"Copyright (c) 2009,2010 by opa"
 
 typedef signed char schar;
 typedef unsigned char uchar;
@@ -174,6 +174,8 @@ public:
 	Self dirname() const;
 	Self basename() const;
 };
+
+typedef list<String> Strings;
 
 String::String()									{}
 String::String(const String::Super &s)				: Super(s) {}
@@ -424,19 +426,28 @@ String String::basename() const
 
 ////////////////////////////////////////////////////////////////////////
 
+#if defined(__CONSOLE__)
+
 void _putcxxx(const char *s, FILE *fp)
 {
-#if defined(__CONSOLE__) || 1
 	fputs(s, fp);
 	fputc('\n', fp);
-#else // __CONSOLE__
-	if((fp = _wfopen(L"debug.out.txt", L"at")) != NULL){
-		fputs(s, fp);
-		fputc('\n', fp);
-		fclose(fp);
-	}
-#endif // __CONSOLE__
 }
+
+#else // __CONSOLE__
+
+String
+	putcxxx_string;
+
+void _putcxxx(const char *s, FILE *)
+{
+	if(putcxxx_string.size() > 0)
+		putcxxx_string += "\r\n";
+
+	putcxxx_string += s;
+}
+
+#endif // __CONSOLE__
 
 inline void putcout(const char *s)
 {
@@ -478,42 +489,9 @@ inline void putcerr(const char *s1, const String &s2)
 	_putcxxx(s1, s2, stderr);
 }
 
-////////////////////////////////////////////////////////////////////////
-
-class case_ignore_less : public binary_function<String, String, bool>
+bool case_ignore_equal(const String &s1, const String &s2)
 {
-public:
-	typedef binary_function<String, String, bool>::first_argument_type first_argument_type;
-	typedef binary_function<String, String, bool>::second_argument_type second_argument_type;
-	typedef binary_function<String, String, bool>::result_type result_type;
-	bool operator() (const String &x, const String &y) const { return x.to_upper() < y.to_upper(); }
-};
-
-class ExpandValues : public map<String, String, case_ignore_less> {
-	typedef ExpandValues Self;
-	typedef map<String, String> Super;
-
-public:
-	mapped_type add(const key_type &name, const mapped_type &val);
-	mapped_type get(const key_type &name) const;
-};
-
-ExpandValues::mapped_type ExpandValues::add(const ExpandValues::key_type &name, const ExpandValues::mapped_type &val)
-{
-	erase(name); // nameも更新するために、一旦消す
-
-	return operator[](name) = val;
-}
-
-ExpandValues::mapped_type ExpandValues::get(const ExpandValues::key_type &name) const
-{
-	const_iterator
-		i = find(name);
-
-	if(i != end())
-		return i->second;
-
-	return String();
+	return s1.to_upper() == s2.to_upper();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -534,6 +512,7 @@ private:
 
 public:
 	IniFileStream()									: _fp(NULL) {}
+	IniFileStream(const String &filename)			: _fp(NULL) { open(filename); }
 
 	static String determine_filename(const String &exename);
 	const String &filename() const					{ return _filename; }
@@ -573,7 +552,7 @@ bool IniFileStream::skip_bom()
 					}
 				}
 			}
-#if 0
+#if 0 // UTF16には対応していない
 		}else if(c == 0xfe){
 			if(!eof()){
 				get(c);
@@ -721,107 +700,6 @@ bool IniFileStream::getline(String &s)
 
 ////////////////////////////////////////////////////////////////////////
 
-class ExString : public String {
-	typedef ExString Self;
-	typedef String Super;
-
-public:
-	ExString()							{}
-	ExString(const wstring &s)			: Super(s) {}
-
-	String expand(const ExpandValues &ev) const;
-	Self &operator=(const Self &s)		{ Super::operator=(s); return *this; }
-	Self &operator=(const wchar_t *s)	{ Super::operator=(s); return *this; }
-	Self &operator=(const char *s)		{ Super::operator=(s); return *this; }
-};
-
-typedef list<ExString>
-	ExStrings;
-
-String ExString::expand(const ExpandValues &ev) const
-{
-	String
-		r,
-		evname;
-	const_iterator
-		i, j;
-	ExpandValues::const_iterator
-		f;
-	wchar_t
-		c, c1, c2, cc;
-
-	for(i = begin() ; i != end() ; ++i){
-		c = *i;
-		if(c == L'$'){
-			++i;
-			if(i == end()){
-				r.append(1, c);
-				goto BREAK;
-			}
-
-			c1 = *i;
-			if(c1 == L'(' || c1 == L'{' || c1 == L'['){
-				if(c1 == L'(')
-					cc = L')';
-				else if(c1 == L'{')
-					cc = L'}';
-				else if(c1 == L'[')
-					cc = L']';
-				else
-					cc = 0;
-
-				++i;
-				if(i == end()){
-					r.append(1, c);
-					r.append(1, c1);
-					goto BREAK;
-				}
-
-				evname.clear();
-				while(1){
-					c2 = *i;
-					if(c2 == cc){
-						if(evname.empty()){
-							putcerr(PGM_WARN "variable name not presented");
-						}else if((f=ev.find(evname)) != ev.end()){
-							r.append(f->second);
-						}else{
-							putcerr(PGM_WARN "variable not defined: ", evname);
-							r.append(1, c);
-							r.append(1, c1);
-							r.append(evname);
-							r.append(1, c2);
-						}
-						break;
-					}else{
-						evname.append(1, c2);
-					}
-
-					++i;
-					if(i == end()){
-						r.append(1, c);
-						r.append(1, c1);
-						r.append(evname);
-						goto BREAK;
-					}
-				}
-			}else if(c1 == L'$'){
-				r.append(1, c);
-			}else{
-				r.append(1, c);
-				r.append(1, c1);
-			}
-		}else{
-			r.append(1, c);
-		}
-	}
-BREAK:;
-
-	return r;
-}
-
-////////////////////////////////////////////////////////////////////////
-
 class WindowsAPI {
 public:
 	static bool CreateProcess(const String &cmd, DWORD CreationFlags, const String &wd, LPSTARTUPINFO si, LPPROCESS_INFORMATION pi);
@@ -939,36 +817,50 @@ String WindowsAPI::SHGetSpecialFolder(sint nFolder)
 {
 	wchar_t
 		buf[MAX_PATH+1];
-	ITEMIDLIST
-		*idl;
-	IMalloc
-		*m;
 
-	SHGetMalloc(&m);
-	if(SHGetSpecialFolderLocation(0, nFolder, &idl) == 0){
-		SHGetPathFromIDList(idl, buf);
-		m->Free(idl);
-	}
-	m->Release();
+	memset(buf, 0, sizeof buf);
+
+	SHGetSpecialFolderPath(0, buf, nFolder, 0);
 
 	return String(buf);
+}
+
+String get_given_option(const String &cmd)
+{
+	// コマンドライン文字列から、コマンド名を除いた残りの部分(コマンドに与えるパラメータの部分)を返す
+
+	bool
+		in_quote = false;
+
+	for(String::const_iterator i = cmd.begin() ; i != cmd.end() ; ++i){
+		wchar_t
+			c = *i;
+
+		if(!in_quote)
+			if(iswspace(c))
+				return String(i, cmd.end());
+
+		if(c == L'"')
+			in_quote = in_quote ? false : true;
+	}
+
+	return String();
 }
 
 ////////////////////////////////////////////////////////////////////////
 
 class ExecuteInfo {
 	typedef ExecuteInfo Self;
-	typedef list<String> Envnames;
 
 private:
-	ExpandValues
-		_expandValues;
-	ExStrings
-		_exStrings;
-	Envnames
-		_import_env,
+	Strings
+		_exStrings,
 		_export_env;
-	ExString
+	String
+		_exename,
+		_ininame,
+		_target,
+		_cwd,
 		_arg,
 		_chdir;
 	bool
@@ -987,18 +879,19 @@ private:
 	static String system_escape(const String &s);
 	static bool search_path(String &cmd, const String &selfname);
 	sint system(const String &cmd, const String &arg);
-	sint create_process(const String &cmd, const String &arg);
+	sint create_process(const String &cmd);
 
 public:
 	ExecuteInfo();
 
-	const ExpandValues &ev() const						{ return _expandValues; }
-	String ev(const ExpandValues::key_type &name) const	{ return _expandValues.get(name); }
-	const ExStrings &exs() const						{ return _exStrings; }
-	const Envnames &import_env() const					{ return _import_env; }
-	const Envnames &export_env() const					{ return _export_env; }
-	const ExString &arg() const							{ return _arg; }
-	const ExString &chdir() const						{ return _chdir; }
+	const Strings &exs() const							{ return _exStrings; }
+	const Strings &export_env() const					{ return _export_env; }
+	const String &exename() const						{ return _exename; }
+	const String &ininame() const						{ return _ininame; }
+	const String &target() const						{ return _target; }
+	const String &cwd() const							{ return _cwd; }
+	const String &arg() const							{ return _arg; }
+	const String &chdir() const							{ return _chdir; }
 	bool verbose() const								{ return _verbose; }
 	bool internal() const								{ return _internal; }
 	bool use_path() const								{ return _use_path; }
@@ -1008,12 +901,13 @@ public:
 	bool maximize() const								{ return _maximize; }
 	bool minimize() const								{ return _minimize; }
 
-	void add_ev(const ExpandValues::key_type &name, const ExpandValues::mapped_type &val);
 	void add_exs(const String &s);
-	void add_import_env(const String &s);
 	void add_export_env(const String &s);
-	ExString &set_arg(const String &s);
-	ExString &set_chdir(const String &s);
+	const String &exename(const String &s);
+//	const String &ininame(const String &s);
+	const String &target(const String &s);
+	const String &arg(const String &s);
+	const String &chdir(const String &s);
 	bool verbose(bool v)								{ return _verbose = v; }
 	bool internal(bool v)								{ return _internal = v; }
 	bool use_path(bool v)								{ return _use_path = v; }
@@ -1024,6 +918,8 @@ public:
 	bool minimize(bool v)								{ return _minimize = v; }
 
 	sint execute();
+	String expand(const String &s) const;
+	String expand_value(const String &key) const;
 	void verbose_out(const String &s);
 };
 
@@ -1032,10 +928,6 @@ typedef list<ExecuteInfo>
 
 ExecuteInfo::ExecuteInfo()
 {
-	_expandValues.clear();
-	_exStrings.clear();
-	_import_env.clear();
-	_export_env.clear();
 	_arg			= "${ARG}";
 	_chdir			= "";
 	_verbose		= false;
@@ -1069,10 +961,9 @@ String ExecuteInfo::get_shell_name()
 		return String("cmd.exe");
 }
 
-bool ExecuteInfo::search_path(String &cmd, const String &_selfname)
+bool ExecuteInfo::search_path(String &cmd, const String &selfname)
 {
 	String
-		selfname(_selfname.to_upper()),
 		path,
 		path1,
 		pathext,
@@ -1145,12 +1036,6 @@ bool ExecuteInfo::search_path(String &cmd, const String &_selfname)
 	return false;
 }
 
-void ExecuteInfo::add_ev(const ExpandValues::key_type &name, const ExpandValues::mapped_type &val)
-{
-	if(name.size() > 0)
-		_expandValues.add(name, val);
-}
-
 void ExecuteInfo::add_exs(const String &s)
 {
 	String
@@ -1158,15 +1043,6 @@ void ExecuteInfo::add_exs(const String &s)
 
 	if(x.size() > 0)
 		_exStrings.push_back(x);
-}
-
-void ExecuteInfo::add_import_env(const String &s)
-{
-	String
-		x = s.trim();
-
-	if(x.size() > 0)
-		_import_env.push_back(x);
 }
 
 void ExecuteInfo::add_export_env(const String &s)
@@ -1178,15 +1054,34 @@ void ExecuteInfo::add_export_env(const String &s)
 		_export_env.push_back(x);
 }
 
-ExString &ExecuteInfo::set_arg(const String &s)
+const String &ExecuteInfo::exename(const String &s)
 {
-	// 空文字列も有り得る
+	wchar_t
+		buf[MAX_PATH + 1];
+
+	// 空文字列も許す (但し、有り得ない)
+	_exename = s.trim();
+	_ininame = IniFileStream::determine_filename(_exename);
+	_cwd = String(_wgetcwd(buf, MAX_PATH)).backslash();
+
+	return _exename;
+}
+
+const String &ExecuteInfo::target(const String &s)
+{
+	// 空文字列も許す
+	return _target = s.trim();
+}
+
+const String &ExecuteInfo::arg(const String &s)
+{
+	// 空文字列も許す
 	return _arg = s.trim();
 }
 
-ExString &ExecuteInfo::set_chdir(const String &s)
+const String &ExecuteInfo::chdir(const String &s)
 {
-	// 空文字列も有り得る
+	// 空文字列も許す
 	return _chdir = s.trim().doublequote_del();
 }
 
@@ -1216,51 +1111,10 @@ String ExecuteInfo::system_escape(const String &s)
 	return r;
 }
 
-sint ExecuteInfo::system(const String &cmd, const String &arg)
+sint ExecuteInfo::create_process(const String &cmd)
 {
 	String
-		cl;
-
-	if(internal()){
-		if(chdir().size() > 0)
-			cl += "pushd \"" + chdir().expand(ev()) + "\" && ";
-		cl += cmd;
-	}else{
-		if(gui()){
-			cl += "start \"" + ev("MY_BASENAME") + "\" ";
-			if(chdir().size() > 0)
-				cl += "/d\"" + chdir().expand(ev()) + "\" ";
-
-			if(hide())
-				cl += "/b ";
-			if(wait())
-				cl += "/wait ";
-			if(maximize())
-				cl += "/max ";
-			if(minimize())
-				cl += "/min ";
-		}else{
-			if(chdir().size() > 0)
-				cl += "pushd \"" + chdir().expand(ev()) + "\" && ";
-		}
-		cl += cmd.doublequote();
-	}
-
-	if(arg.size() > 0 && !iswspace(arg[0]))
-		cl.append(1,L' '); // 空白がないとコマンド名とくっついてしまうのでスペースを補う
-	cl += system_escape(arg);
-
-	verbose_out("cmd.exe: " + cl);
-
-	fflush(stdout);
-	fflush(stderr);
-
-	return _wsystem((L'"' + cl + L'"').c_str()); // ここでクォートするとなぜうまくいくのか判らない。cmd.exeの謎
-}
-
-sint ExecuteInfo::create_process(const String &cmd, const String &arg)
-{
-	String
+		arg,
 		cl;
 	STARTUPINFO
 		si;
@@ -1272,21 +1126,21 @@ sint ExecuteInfo::create_process(const String &cmd, const String &arg)
 	sint
 		r = 0;
 
-
 	if(internal()){
 		cl += get_shell_name().doublequote() + " /c" + cmd;
 	}else{
 		cl += cmd.doublequote();
 	}
 
+	arg = expand(_arg);
 	if(arg.size() > 0 && !iswspace(arg[0]))
 		cl.append(1,L' '); // 空白がないとコマンド名とくっついてしまうのでスペースを補う
 	cl += arg;
 
-
 	memset(&si, 0, sizeof si);
-	si.cb = sizeof si;
 	memset(&pi, 0, sizeof pi);
+	si.cb = sizeof si;
+	GetStartupInfo(&si);
 
 	si.dwFlags |= STARTF_FORCEOFFFEEDBACK;
 
@@ -1300,16 +1154,14 @@ sint ExecuteInfo::create_process(const String &cmd, const String &arg)
 		si.dwFlags |= STARTF_USESHOWWINDOW;
 	}
 
-// chdir()
 // hide()
-// internal()
 
 	verbose_out("create process: " + cl);
 
 	fflush(stdout);
 	fflush(stderr);
 
-	if(WindowsAPI::CreateProcess(cl, CreationFlags, chdir(), &si, &pi) == 0){
+	if(WindowsAPI::CreateProcess(cl, CreationFlags, expand(_chdir), &si, &pi) == 0){
 		error = true;
 		return -2;
 	}
@@ -1327,38 +1179,24 @@ sint ExecuteInfo::create_process(const String &cmd, const String &arg)
 	return r;
 }
 
-bool is_exe_or_com()
-{
-	return true;
-}
-
 sint ExecuteInfo::execute()
 {
 	String
 		cmd,
-		arge,
 		selfname;
 	bool
 		done = false,
 		found;
 
-	verbose_out("--- execute ---");
-
-	for(Envnames::const_iterator i = import_env().begin() ; i != import_env().end() ; ++i)
-		add_ev(*i, getenv(*i));
-
-	if(verbose()){
+	if(verbose()){ // for speed
+		verbose_out("--- execute ---");
 		verbose_out("arg: " + arg());
 		verbose_out("chdir: " + chdir());
 
-		for(Envnames::const_iterator i = import_env().begin() ; i != import_env().end() ; ++i)
-			verbose_out("import_env: " + *i);
-		for(Envnames::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i)
+		for(Strings::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i)
 			verbose_out("export_env: " + *i);
-		for(ExpandValues::const_iterator i = ev().begin() ; i != ev().end() ; ++i)
-			verbose_out("v: " + i->first + "=" + i->second);
-		for(ExStrings::const_iterator i = exs().begin() ; i != exs().end() ; ++i)
-			verbose_out("e: " + *i);
+		for(Strings::const_iterator i = exs().begin() ; i != exs().end() ; ++i)
+			verbose_out("exs: " + *i);
 	}
 
 	if(exs().size() <= 0){
@@ -1368,62 +1206,53 @@ sint ExecuteInfo::execute()
 		return 1;
 	}
 
-	for(Envnames::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i){
-		ExpandValues::const_iterator f = ev().find(*i);
-		if(f != ev().end())
-			putenv("WRAPEXEC_" + f->first, f->second);
-		else
-			putcerr(PGM_WARN "variable not defined: ", *i);
-	}
-
-	arge = arg().expand(ev());
-	selfname = ev("MY_EXENAME");
-	for(ExStrings::const_iterator i = exs().begin() ; i != exs().end() ; ++i){
+	selfname = expand_value("MY_EXENAME").to_upper();
+	for(Strings::const_iterator i = exs().begin() ; i != exs().end() ; ++i){
 		found = false;
-		cmd = i->expand(ev());
+		cmd = expand(*i);
 
 		if(internal()){
 			verbose_out("executable: " + cmd + " (internal)");
 			found = true;
+		}else if(use_path()){
+			found = search_path(cmd, selfname);
+		}else if(cmd.to_upper() == selfname){
+			verbose_out("unexecutable myself: " + cmd);
+		}else if(file_is_executable(cmd)){
+			verbose_out("executable: " + cmd);
+			found = true;
 		}else{
-			if(use_path()){
-				found = search_path(cmd, selfname);
-			}else if(cmd.to_upper() != selfname.to_upper() && file_is_executable(cmd)){
-				verbose_out("executable: " + cmd);
-				found = true;
-			}else{
-				verbose_out("unexecutable: " + cmd);
-			}
+			verbose_out("unexecutable: " + cmd);
 		}
 
 		if(found){
-			if(is_exe_or_com()){	// CreateProcess() で起動
-				rcode = create_process(cmd, arge);
-			}else{					// cmd.exe経由で起動
-				rcode = system(cmd, arge);
-			}
+			target(cmd);
+
+			for(Strings::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i)
+				putenv("WRAPEXEC_" + *i, expand_value(*i));
+
+			rcode = create_process(cmd);
+
+			// BUG: 「元に戻す」のではなく「クリアする」ということをしている
+			for(Strings::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i)
+				putenv("WRAPEXEC_" + *i, "");
 
 			verbose_out(String().printf("return code: %d", rcode));
+			target("");
 			done = true;
 			break;
 		}
 	}
 
-	// BUG: 「元に戻す」のではなく「クリアする」ということをしている
-	for(Envnames::const_iterator i = export_env().begin() ; i != export_env().end() ; ++i){
-		ExpandValues::const_iterator f = ev().find(*i);
-		if(f != ev().end())
-			putenv("WRAPEXEC_" + f->first, "");
-	}
 
 	if(!done){
-#if 1
+#if defined(__CONSOLE__) || 1
 		rcode = 1;
-		putcerr("'" + system_escape(ev("MY_BASENAME")) +
+		putcerr("'" + system_escape(expand_value("MY_BASENAME")) +
 				"' is not recognized as an internal or external command,\n"
 				"operable program or batch file.");
 #else
-		// 存在し得ないコマンド名をcmd.exe与えて、エラーメッセージを出させる
+		// 存在し得ないコマンド名をcmd.exeに与えて、エラーメッセージを出させる
 		rcode = system(system_escape(ev("MY_BASENAME")) + "\"\b");
 #endif
 		error = true;
@@ -1433,6 +1262,169 @@ sint ExecuteInfo::execute()
 	return 0;
 }
 
+String ExecuteInfo::expand(const String &s) const
+{
+	String
+		r,
+		name;
+	wchar_t
+		c1, c2, c3, kokka;
+
+	for(String::const_iterator i = s.begin() ; i != s.end() ; ++i){
+		c1 = *i;
+		if(c1 == L'$'){
+			++i;
+			if(i == s.end()){
+				r.append(1, c1);
+				goto BREAK;
+			}
+
+			c2 = *i;
+			if(c2 == L'(' || c2 == L'{' || c2 == L'['){
+				if(c2 == L'(')
+					kokka = L')';
+				else if(c2 == L'{')
+					kokka = L'}';
+				else if(c2 == L'[')
+					kokka = L']';
+				else
+					kokka = 0;
+
+				++i;
+				if(i == s.end()){
+					r.append(1, c1);
+					r.append(1, c2);
+					goto BREAK;
+				}
+
+				name.clear();
+				while(1){
+					c3 = *i;
+					if(c3 == kokka){
+						r.append(expand_value(name));
+						break;
+					}else{
+						name.append(1, c3);
+					}
+
+					++i;
+					if(i == s.end()){
+						r.append(1, c1);
+						r.append(1, c2);
+						r.append(name);
+						goto BREAK;
+					}
+				}
+			}else if(c2 == L'$'){
+				r.append(1, L'$');
+			}else{
+				r.append(1, c1);
+				r.append(1, c2);
+			}
+		}else{
+			r.append(1, c1);
+		}
+	}
+BREAK:;
+
+	return r;
+}
+
+String ExecuteInfo::expand_value(const String &key) const
+{
+	String
+		r;
+
+	if(key.empty()){
+		putcerr(PGM_WARN "variable name not presented");
+		return "";
+	}
+
+	if(case_ignore_equal(key, "ARG")){
+		r = get_given_option(WindowsAPI::GetCommandLine());
+	}else if(case_ignore_equal(key, "CLIPBOARD")){
+		r = WindowsAPI::GetClipboardText();
+	}else if(case_ignore_equal(key, "MY_EXENAME")){
+		r = _exename;
+	}else if(case_ignore_equal(key, "MY_ININAME")){
+		r = _ininame;
+	}else if(case_ignore_equal(key, "MY_BASENAME")){
+		r = _exename.basename();
+	}else if(case_ignore_equal(key, "MY_DIR") || case_ignore_equal(key, "MY")){
+		r = _exename.dirname();
+	}else if(case_ignore_equal(key, "MY_DRIVE")){
+		r = _exename.drivename();
+	}else if(case_ignore_equal(key, "SYS_NAME")){
+		r = WindowsAPI::GetComputerName();										// SOMEONESPC 等
+	}else if(case_ignore_equal(key, "SYS_ROOT")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_WINDOWS);						// C:\WINDOWS 等
+		r = r.backslash();
+	}else if(case_ignore_equal(key, "SYS_DIR") || case_ignore_equal(key, "SYS")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_SYSTEM);						// C:\WINDOWS\system32 等
+		r = r.backslash();
+	}else if(case_ignore_equal(key, "SYS_DRIVE")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_SYSTEM);						// C:\WINDOWS\system32 等
+		r = r.drivename();
+	}else if(case_ignore_equal(key, "USER_NAME")){
+		r = WindowsAPI::GetUserName();											// someone 等
+	}else if(case_ignore_equal(key, "USER_DIR") || case_ignore_equal(key, "USER")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_PROFILE);						// C:\Documents and Settings\someone 等
+		r = r.backslash();
+	}else if(case_ignore_equal(key, "USER_DRIVE")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_PROFILE);						// C:\Documents and Settings\someone 等
+		r = r.drivename();
+	}else if(case_ignore_equal(key, "USER_DOC")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_PERSONAL);						// C:\Documents and Settings\someone\My Documents 等
+		r = r.backslash();
+	}else if(case_ignore_equal(key, "USER_DESKTOP")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_DESKTOPDIRECTORY);				// C:\Documents and Settings\someone\デスクトップ 等
+		r = r.backslash();
+	}else if(case_ignore_equal(key, "ALL_USER_DIR") || case_ignore_equal(key, "ALL_USER")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DOCUMENTS).dirname();	// C:\Documents and Settings\All Users\Documents 等
+		r = r.backslash();
+	}else if(case_ignore_equal(key, "ALL_USER_DRIVE")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DOCUMENTS).dirname();	// C:\Documents and Settings\All Users\Documents 等
+		r = r.drivename();
+	}else if(case_ignore_equal(key, "ALL_USER_DOC")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DOCUMENTS);				// C:\Documents and Settings\All Users\Documents 等
+		r = r.backslash();
+	}else if(case_ignore_equal(key, "ALL_USER_DESKTOP")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DESKTOPDIRECTORY);		// C:\Documents and Settings\All Users\デスクトップ 等
+		r = r.backslash();
+	}else if(case_ignore_equal(key, "PROGRAM_DIR") || case_ignore_equal(key, "PROGRAM")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_PROGRAM_FILES);				// C:\Program Files 等
+		r = r.backslash();
+	}else if(case_ignore_equal(key, "PROGRAM_DRIVE")){
+		r = WindowsAPI::SHGetSpecialFolder(CSIDL_PROGRAM_FILES);				// C:\Program Files 等
+		r = r.drivename();
+	}else if(case_ignore_equal(key, "TMP_DIR") || case_ignore_equal(key, "TMP")){
+		r = WindowsAPI::GetTempPath();											// C:\DOCUME~1\SOMEONE\LOCALS~1\Temp 等
+		r = r.backslash();
+	}else if(case_ignore_equal(key, "TMP_DRIVE")){
+		r = WindowsAPI::GetTempPath();											// C:\DOCUME~1\SOMEONE\LOCALS~1\Temp 等
+		r = r.drivename();
+	}else if(case_ignore_equal(key, "TARGET_NAME")){
+		r = _target;
+	}else if(case_ignore_equal(key, "TARGET_DIR") || case_ignore_equal(key, "TARGET")){
+		r = _target.dirname();
+	}else if(case_ignore_equal(key, "TARGET_DRIVE")){
+		r = _target.drivename();
+	}else if(case_ignore_equal(key, "CURRENT_DIR") || case_ignore_equal(key, "CURRENT")){
+		r = _cwd;
+	}else if(case_ignore_equal(key, "CURRENT_DRIVE")){
+		r = _cwd.drivename();
+	}else{
+		r = getenv(key);
+		if(r.size() == 0){
+			putcerr(PGM_WARN "variable not defined: ", key);
+			r = key;
+		}
+	}
+
+	return r;
+
+}
+
 void ExecuteInfo::verbose_out(const String &s)
 {
 	if(verbose())
@@ -1440,26 +1432,6 @@ void ExecuteInfo::verbose_out(const String &s)
 }
 
 ////////////////////////////////////////////////////////////////////////
-
-String get_given_option(const String &cmd)
-{
-	bool
-		in_quote = false;
-
-	for(String::const_iterator i = cmd.begin() ; i != cmd.end() ; ++i){
-		wchar_t
-			c = *i;
-
-		if(!in_quote)
-			if(iswspace(c))
-				return String(i, cmd.end());
-
-		if(c == L'"')
-			in_quote = in_quote ? false : true;
-	}
-
-	return String();
-}
 
 void do_help()
 {
@@ -1472,7 +1444,6 @@ void do_help()
 		" [option]\n"
 		" [exec]\n"
 		" [end]\n"
-		""
 	);
 
 	putcout(
@@ -1480,7 +1451,6 @@ void do_help()
 		" help\n"
 		" arg\n"
 		" chdir\n"
-		" import_env\n"
 		" export_env\n"
 		" verbose\n"
 		" internal\n"
@@ -1490,7 +1460,6 @@ void do_help()
 		" hide\n"
 		" maximize\n"
 		" minimize\n"
-		""
 	);
 
 	putcout(
@@ -1519,63 +1488,12 @@ void do_help()
 		" PROGRAM_DRIVE\n"
 		" TMP_DIR (TMP)\n"
 		" TMP_DRIVE\n"
-		""
+		" TARGET_NAME\n"
+		" TARGET_DIR (TARGET)\n"
+		" TARGET_DRIVE\n"
+		" CURRENT_DIR (CURRENT)\n"
+		" CURRENT_DRIVE"
 	);
-}
-
-void setup_expandvalues(ExecuteInfo &ei, const String &exename, const String &ininame)
-{
-	String
-		s;
-
-	ei.add_ev("ARG", get_given_option(WindowsAPI::GetCommandLine()));
-	ei.add_ev("CLIPBOARD", WindowsAPI::GetClipboardText());
-
-	ei.add_ev("MY_EXENAME", exename);
-	ei.add_ev("MY_ININAME", ininame);
-	ei.add_ev("MY_BASENAME", exename.basename());
-	ei.add_ev("MY_DRIVE", exename.drivename());
-	ei.add_ev("MY_DIR", exename.dirname());
-	ei.add_ev("MY", exename.dirname());
-
-	s = WindowsAPI::GetComputerName();										// SOMEONESPC
-	ei.add_ev("SYS_NAME", s);
-	s = WindowsAPI::SHGetSpecialFolder(CSIDL_WINDOWS);						// C:\WINDOWS
-	ei.add_ev("SYS_ROOT", s.backslash());
-	s = WindowsAPI::SHGetSpecialFolder(CSIDL_SYSTEM);						// C:\WINDOWS\system32
-	ei.add_ev("SYS_DRIVE", s.drivename());
-	ei.add_ev("SYS_DIR", s.backslash());
-	ei.add_ev("SYS", s.backslash());
-
-	s = WindowsAPI::GetUserName();											// someone
-	ei.add_ev("USER_NAME", s);
-	s = WindowsAPI::SHGetSpecialFolder(CSIDL_PROFILE);						// C:\Documents and Settings\someone
-	ei.add_ev("USER_DRIVE", s.drivename());
-	ei.add_ev("USER_DIR", s.backslash());
-	ei.add_ev("USER", s.backslash());
-	s = WindowsAPI::SHGetSpecialFolder(CSIDL_PERSONAL);						// C:\Documents and Settings\someone\My Documents
-	ei.add_ev("USER_DOC", s.backslash());
-	s = WindowsAPI::SHGetSpecialFolder(CSIDL_DESKTOPDIRECTORY);				// C:\Documents and Settings\someone\デスクトップ
-	ei.add_ev("USER_DESKTOP", s.backslash());
-
-	s = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DOCUMENTS).dirname();	// C:\Documents and Settings\All Users\Documents
-	ei.add_ev("ALL_USER_DRIVE", s.drivename());
-	ei.add_ev("ALL_USER_DIR", s.backslash());
-	ei.add_ev("ALL_USER", s.backslash());
-	s = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DOCUMENTS);				// C:\Documents and Settings\All Users\Documents
-	ei.add_ev("ALL_USER_DOC", s.backslash());
-	s = WindowsAPI::SHGetSpecialFolder(CSIDL_COMMON_DESKTOPDIRECTORY);		// C:\Documents and Settings\All Users\デスクトップ
-	ei.add_ev("ALL_USER_DESKTOP", s.backslash());
-
-	s = WindowsAPI::SHGetSpecialFolder(CSIDL_PROGRAM_FILES);				// C:\Program Files
-	ei.add_ev("PROGRAM_DRIVE", s.drivename());
-	ei.add_ev("PROGRAM_DIR", s.backslash());
-	ei.add_ev("PROGRAM", s.backslash());
-
-	s = WindowsAPI::GetTempPath();											// C:\DOCUME~1\SOMEONE\LOCALS~1\Temp
-	ei.add_ev("TMP_DRIVE", s.drivename());
-	ei.add_ev("TMP_DIR", s.backslash());
-	ei.add_ev("TMP", s.backslash());
 }
 
 void do_inifile_option(IniFileStream &ifs, ExecuteInfo &e, const String &aline)
@@ -1585,11 +1503,11 @@ void do_inifile_option(IniFileStream &ifs, ExecuteInfo &e, const String &aline)
 		error = true;	// execフェーズを実行しない
 		rcode = 0;		// がエラーではないのでrcodeは0を返す
 	}else if(ifs.is_key(aline, "ARG")){
-		e.set_arg(ifs.get_value_String(aline));
+		e.arg(ifs.get_value_String(aline));
 	}else if(ifs.is_key(aline, "CHDIR")){
-		e.set_chdir(ifs.get_value_String(aline));
+		e.chdir(ifs.get_value_String(aline));
 	}else if(ifs.is_key(aline, "IMPORT_ENV")){
-		e.add_import_env(ifs.get_value_String(aline));
+		putcerr(PGM_WARN "keyword IMPORT_ENV is obsolete: ", ifs.get_value_String(aline));
 	}else if(ifs.is_key(aline, "EXPORT_ENV")){
 		e.add_export_env(ifs.get_value_String(aline));
 	}else if(ifs.is_key(aline, "VERBOSE")){
@@ -1617,7 +1535,7 @@ void do_inifile_option(IniFileStream &ifs, ExecuteInfo &e, const String &aline)
 	}
 }
 
-void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfos &execinfos, const String &ininame)
+void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfos &execinfos, const String &exename)
 {
 	enum section_id{
 		SECTION_NONE,
@@ -1627,28 +1545,29 @@ void load_inifile(ExecuteInfo &execinfo_default, ExecuteInfos &execinfos, const 
 		SECTION_EXEC,
 	};
 
-	execinfo_default.verbose_out("--- prepare ---");
+	execinfo_default.exename(exename);
 
-	IniFileStream
-		ifs;
-	String
-		aline;
-	section_id
-		section = SECTION_EXEC;
+	execinfo_default.verbose_out("--- prepare ---");
+	execinfo_default.verbose_out("exe filename: " + execinfo_default.exename());
+	execinfo_default.verbose_out("ini filename: " + execinfo_default.ininame());
+	execinfo_default.verbose_out("cwd: " + execinfo_default.cwd());
 
 	execinfos.clear();
 	execinfos.push_back(execinfo_default);
 
-	ifs.open(ininame);
+	String
+		aline;
+	section_id
+		section = SECTION_EXEC;
+	IniFileStream
+		ifs(execinfo_default.ininame());
 
 	if(!ifs.is_open()){
-		putcerr(PGM_ERR "ini file open failed: ", ininame);
+		putcerr(PGM_ERR "ini file open failed");
 		error = true;
 		rcode = -5;
 		return;
 	}
-
-	execinfo_default.verbose_out("ini filename: " + ifs.filename());
 
 	while(ifs.getline(aline)){
 		if(ifs.is_comment(aline)){
@@ -1704,33 +1623,14 @@ void wrapexec_main()
 		execinfo_default;
 	ExecuteInfos
 		execinfos;
-	String
-		exename,
-		ininame;
 
-	exename = WindowsAPI::GetModuleFileName();
-	ininame = IniFileStream::determine_filename(exename);
-
-	setup_expandvalues(execinfo_default, exename, ininame);
-
-	load_inifile(execinfo_default, execinfos, ininame);
+	load_inifile(execinfo_default, execinfos, WindowsAPI::GetModuleFileName());
 
 	for(ExecuteInfos::iterator i = execinfos.begin() ; !error && i != execinfos.end() ; ++i)
 		i->execute();
 }
 
-#ifdef __MINGW32__
-
-sint main(sint, char *[])
-{
-	wrapexec_main();
-
-	return rcode;
-}
-
-#else // __MINGW32__
-
-#ifdef __CONSOLE__
+#if defined(__CONSOLE__)
 
 sint wmain(sint, wchar_t *[])
 {
@@ -1753,12 +1653,15 @@ extern "C"
 sint WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int)
 {
 	dummy_message();
+	putcxxx_string.clear();
 
 	wrapexec_main();
+
+	if(putcxxx_string.size() > 0)
+		MessageBox(0, putcxxx_string.c_str(), WindowsAPI::GetModuleFileName().basename().c_str(), MB_ICONINFORMATION + MB_OK);
 
 	return rcode;
 }
 
 #endif // __CONSOLE__
 
-#endif // __MINGW32__

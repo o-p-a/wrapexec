@@ -6,7 +6,7 @@ use_path
 cscript
 [end]
 :BATCH_BEGIN
-cscript //E:JScript //Nologo %0 %*
+cscript //E:JScript //Nologo "%~dpn0.bat" %*
 goto :eof
 @end
 //------------------------------------------------------

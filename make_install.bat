@@ -21,6 +21,7 @@ call :exec1 C "samples\runjscript"
 call :exec1 C "samples\runperl"
 call :exec1 C "samples\runruby"
 
+call :exec1 C "\usrlocal\bat\bzr"
 call :exec1 C "\usrlocal\bat\DeleteIfExist"
 call :exec1 C "\usrlocal\bat\irb"
 call :exec1 C "\usrlocal\bat\MakeShortcut"
@@ -29,22 +30,28 @@ call :exec1 C "\usrlocal\bat\MoveWithDatetime"
 call :exec1 C "\usrlocal\bat\NetUse"
 call :exec1 C "\usrlocal\bat\NetUseDeleteAll"
 call :exec1 C "\usrlocal\bat\perl"
+call :exec1 C "\usrlocal\bat\python"
 call :exec1 C "\usrlocal\bat\ruby"
 call :exec1 C "\usrlocal\bat\TimeSync"
 call :exec1 C "\usrlocal\bat\UpdateVaccine"
 call :exec1 C "\usrlocal\bat\vi"
 
+call :exec1 G "\usrlocal\bat\chrome"
 call :exec1 G "\usrlocal\bat\CmdPrompt"
 call :exec1 G "\usrlocal\bat\emacs"
 call :exec1 G "\usrlocal\bat\eval"
 call :exec1 G "\usrlocal\bat\ExtractArchive"
-call :exec1 G "\usrlocal\bat\firefox"
+call :exec1 G "\usrlocal\bat\firefoxExecutor"
 call :exec1 G "\usrlocal\bat\gv"
 call :exec1 G "\usrlocal\bat\gvim"
+call :exec1 G "\usrlocal\bat\MicrosoftAccess"
 call :exec1 G "\usrlocal\bat\MicrosoftExcel"
+call :exec1 G "\usrlocal\bat\MicrosoftOutlook"
+call :exec1 G "\usrlocal\bat\MicrosoftPowerPoint"
 call :exec1 G "\usrlocal\bat\MicrosoftWord"
 call :exec1 G "\usrlocal\bat\mplayer"
 call :exec1 G "\usrlocal\bat\mplayerc"
+call :exec1 G "\usrlocal\bat\opera"
 call :exec1 G "\usrlocal\bat\PdfViewer"
 call :exec1 G "\usrlocal\bat\ped"
 call :exec1 G "\usrlocal\bat\pedc"
@@ -54,11 +61,14 @@ call :exec1 G "\usrlocal\bat\TeraTerm"
 call :exec1 G "\usrlocal\bat\UnplugDrive2"
 call :exec1 G "\usrlocal\bat\ViX"
 call :exec1 G "\usrlocal\bat\vncviewer"
+call :exec1 G "\usrlocal\bat\WebAppExecutor"
 call :exec1 G "\usrlocal\bat\WinDVD"
 call :exec1 G "\usrlocal\bat\WinMerge"
 
 popd
 endlocal
+echo [END]
+pause>nul
 goto :eof
 
 :exec1

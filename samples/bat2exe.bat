@@ -1,4 +1,4 @@
-@goto BATCH_BEGIN
+@goto BATCH_BEGIN & rem vim:set ft=BAT : -*- coding:US-ASCII mode:BAT -*-
 [exec]
 ${MY_ININAME}
 [end]
@@ -8,5 +8,5 @@ ${MY_ININAME}
 
 rem Example for wrapexec. Replace your batch file here.
 
-echo Hello world !! I am '%~f0'
+echo Hello world !! I am '%~dpn0.bat'
 

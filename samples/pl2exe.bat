@@ -1,5 +1,5 @@
 @rem vim:set ft=Perl : -*- coding:US-ASCII mode:Perl -*-
-@perl -x -- "%~f0" %*
+@perl -x -- "%~dpn0.bat" %*
 @goto :eof
 [option]
 arg = -x -- "${MY_ININAME}"${ARG}

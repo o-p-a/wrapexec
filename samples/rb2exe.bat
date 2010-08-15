@@ -1,5 +1,5 @@
 @rem vim:set ft=Ruby : -*- coding:US-ASCII mode:Ruby -*-
-@ruby -x -- "%~f0" %*
+@ruby -x -- "%~dpn0.bat" %*
 @goto :eof
 [option]
 arg = -x -- "${MY_ININAME}"${ARG}

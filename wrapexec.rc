@@ -2,8 +2,8 @@
 
 #include <winver.h>
 
-#define VERNUM				1,01,0,0
-#define VERSTR				"1.01"
+#define VERNUM				1,03,0,0
+#define VERSTR				"1.03"
 #define CREDIT2009			"Copyright (c) 2009 by opa"
 #define PGM					"wrapexec"
 #define DESCRIPTION			"Wrapper of Execute"
@@ -37,6 +37,11 @@ BEGIN
 	END
 END
 
+#ifdef __CONSOLE__
+1	ICON	"wrapexec3.ico"
+2	ICON	"wrapexec2.ico"
+#else // __CONSOLE__
 1	ICON	"wrapexec1.ico"
 2	ICON	"wrapexec2.ico"
+#endif // __CONSOLE__
 
