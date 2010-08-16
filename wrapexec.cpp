@@ -1457,7 +1457,6 @@ void do_help()
 		" use_path\n"
 		" gui\n"
 		" wait\n"
-		" hide\n"
 		" maximize\n"
 		" minimize\n"
 	);
