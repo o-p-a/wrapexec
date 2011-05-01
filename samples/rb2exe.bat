@@ -1,4 +1,4 @@
-@rem vim:set ft=Ruby : -*- coding:US-ASCII mode:Ruby -*-
+@rem vi:set ft=Ruby ts=4 : -*- coding:US-ASCII mode:Ruby -*-
 @ruby -x -- "%~dpn0.bat" %*
 @goto :eof
 [option]
@@ -7,11 +7,12 @@ use_path
 [exec]
 ruby
 [end]
---------------------------------------------------------
+#----------------------------------------------------------------
 #! /usr/bin/ruby
 # coding: US-ASCII
-
-# Example for wrapexec. Replace your script here.
+#----------------------------------------------------------------
+# Example for wrapexec. Replace your script below.
+#----------------------------------------------------------------
 
 def main
 	print "Hello world !! I am '#$0'\n"

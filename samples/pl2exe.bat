@@ -1,4 +1,4 @@
-@rem vim:set ft=Perl : -*- coding:US-ASCII mode:Perl -*-
+@rem vi:set ft=Perl ts=4 : -*- coding:US-ASCII mode:Perl -*-
 @perl -x -- "%~dpn0.bat" %*
 @goto :eof
 [option]
@@ -7,11 +7,12 @@ use_path
 [exec]
 perl
 [end]
---------------------------------------------------------
+#----------------------------------------------------------------
 #! /usr/bin/perl
 #line 14
-
-# Example for wrapexec. Replace your script here.
+#----------------------------------------------------------------
+# Example for wrapexec. Replace your script below.
+#----------------------------------------------------------------
 
 sub main
 {

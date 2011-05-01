@@ -1,7 +1,8 @@
 #! /usr/bin/perl
-# vim:set ft=Perl : -*- coding:US-ASCII mode:Perl -*-
-
-# Example for wrapexec. Replace your script here.
+# vi:set ft=Perl ts=4 : -*- coding:US-ASCII mode:Perl -*-
+#----------------------------------------------------------------
+# Example for wrapexec. Replace your script below.
+#----------------------------------------------------------------
 
 sub main
 {

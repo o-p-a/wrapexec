@@ -1,4 +1,4 @@
-@if (0)==(0) echo off & goto BATCH_BEGIN & rem vim:set ft=JavaScript : -*- coding:US-ASCII mode:JavaScript -*-
+@if (0)==(0) echo off & goto BATCH_BEGIN & rem vi:set ft=JavaScript ts=4 : -*- coding:US-ASCII mode:JavaScript -*-
 [option]
 arg = //E:JScript //Nologo "${MY_ININAME}"${ARG}
 use_path
@@ -9,9 +9,9 @@ cscript
 cscript //E:JScript //Nologo "%~dpn0.bat" %*
 goto :eof
 @end
-//------------------------------------------------------
-
-// Example for wrapexec. Replace your script here.
+//----------------------------------------------------------------
+// Example for wrapexec. Replace your script below.
+//----------------------------------------------------------------
 
 function main()
 {
