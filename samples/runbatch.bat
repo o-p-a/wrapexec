@@ -1,4 +1,5 @@
-@echo off & rem vi:set ft=BAT : -*- coding:US-ASCII mode:BAT -*-
+@echo off & rem -*- mode:BAT; coding:US-ASCII; -*-
+@rem vi:set ft=BAT fenc=US-ASCII :
 ::----------------------------------------------------------------
 rem Example for wrapexec. Replace your batch file below.
 ::----------------------------------------------------------------

@@ -1,4 +1,5 @@
-@rem vi:set ft=Perl ts=4 : -*- coding:US-ASCII mode:Perl -*-
+@rem -*- mode:Perl; tab-width:4; coding:US-ASCII; -*-
+@rem vi:set ft=perl ts=4 fenc=US-ASCII :
 @perl -x -- "%~dpn0.bat" %*
 @goto :eof
 [option]

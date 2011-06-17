@@ -1,5 +1,6 @@
 #! /usr/bin/perl
-# vi:set ft=Perl ts=4 : -*- coding:US-ASCII mode:Perl -*-
+# -*- mode:Perl; tab-width:4; coding:US-ASCII; -*-
+# vi:set ft=perl ts=4 fenc=US-ASCII :
 #----------------------------------------------------------------
 # Example for wrapexec. Replace your script below.
 #----------------------------------------------------------------

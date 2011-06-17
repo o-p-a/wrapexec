@@ -1,4 +1,5 @@
-@goto BATCH_BEGIN & rem vi:set ft=BAT : -*- coding:US-ASCII mode:BAT -*-
+@goto BATCH_BEGIN && -*- mode:BAT; coding:US-ASCII; -*-
+@ vi:set ft=BAT fenc=US-ASCII :
 [exec]
 ${MY_ININAME}
 [end]

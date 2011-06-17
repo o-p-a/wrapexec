@@ -1,5 +1,6 @@
 #! /usr/bin/ruby
-# vi:set ft=Ruby ts=4 : -*- coding:US-ASCII mode:Ruby -*-
+# -*- mode:Ruby; tab-width:4; coding:US-ASCII; -*-
+# vi:set ft=ruby ts=4 fenc=US-ASCII :
 #----------------------------------------------------------------
 # Example for wrapexec. Replace your script below.
 #----------------------------------------------------------------
