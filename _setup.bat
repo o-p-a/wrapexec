@@ -8,7 +8,7 @@ if exist "C:\Borland\bcc55\" (
 	set BCCDIR=%~d0\opt\bcc55\
 )
 
-call AddPath "%BCCDIR%bin"
+call AddPath /b "%BCCDIR%bin"
 set INCLUDE=%BCCDIR%include
 set DIRCMD=/a /ogn
 doskey make=make -f MAKEFILE.borland $*

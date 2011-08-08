@@ -16,7 +16,7 @@ RM = del
 
 all: $(PRJ).exe $(PRJ)w.exe
 
-$(PRJ).exe: $(PRJ).cpp $(PRJ).rc $(PRJ)1.ico $(PRJ)2.ico
+$(PRJ).exe: $(PRJ).cpp $(PRJ).rc $(PRJ)3.ico $(PRJ)2.ico
 	$(CC) $(CFLAGS) -WC $(PRJ).cpp noeh32.lib
 	brc32 -d__CONSOLE__ $(PRJ).rc
 	upx -q -q --lzma --compress-icons=0 $(PRJ).exe
