@@ -21,9 +21,9 @@
 #define PGM_INFO			PGM ": "
 #define PGM_WARN			PGM " warning: "
 #define PGM_ERR				PGM " error: "
-#define VERSTR				"1.03"
+#define VERSTR				"1.04"
 
-#define CREDIT2009			"Copyright (c) 2009,2010 by opa"
+#define CREDIT2009			"Copyright (c) 2009,2011 by opa"
 
 typedef signed char schar;
 typedef unsigned char uchar;
@@ -79,7 +79,6 @@ inline bool isbackslash(wchar_t c)
 
 bool file_is_exist(const wchar_t *filename)
 {
-#if 1
 	_wffblk ff;
 	sint r;
 
@@ -87,9 +86,6 @@ bool file_is_exist(const wchar_t *filename)
 	_wfindclose(&ff);
 
 	return r == 0;
-#else
-	return _waccess(filename, 0) == 0;
-#endif
 }
 
 inline bool file_is_exist(const wstring &filename)
@@ -97,7 +93,7 @@ inline bool file_is_exist(const wstring &filename)
 	return file_is_exist(filename.c_str());
 }
 
-bool _file_is_readable(const wchar_t *filename)
+bool file_is_readable(const wchar_t *filename)
 {
 	FILE
 		*fp = _wfopen(filename, L"rb");
@@ -108,14 +104,6 @@ bool _file_is_readable(const wchar_t *filename)
 	}
 
 	return false;
-}
-
-bool file_is_readable(const wchar_t *filename)
-{
-	if(!file_is_exist(filename))
-		return false;
-
-	return _file_is_readable(filename);
 }
 
 inline bool file_is_readable(const wstring &filename)
@@ -254,7 +242,7 @@ String String::doublequote() const
 		r;
 
 	if(isdoublequote()){
-		r.append(*this);
+		r = *this;
 	}else{
 		r.reserve(size() + 2);
 		r.append(1, L'"');
@@ -534,7 +522,7 @@ public:
 bool IniFileStream::skip_bom()
 {
 	// BUG:
-	//  fe fe ... のようなファイルの場合、二つ目のfeしかunget()されない
+	//  ef ff... のようなファイルの場合、二つ目のffしかunget()されない
 
 	sint
 		c;
@@ -584,7 +572,7 @@ String IniFileStream::determine_filename(const String &exename)
 	if(file_is_readable(r = exename.subext(".bat")))
 		return r;
 
-	return exename.subext(".ini"); /* default (but not found) */
+	return exename.subext(".ini"); /* not found, using default */
 }
 
 void IniFileStream::open(const String &fn)
@@ -833,14 +821,9 @@ String get_given_option(const String &cmd)
 		in_quote = false;
 
 	for(String::const_iterator i = cmd.begin() ; i != cmd.end() ; ++i){
-		wchar_t
-			c = *i;
-
-		if(!in_quote)
-			if(iswspace(c))
-				return String(i, cmd.end());
-
-		if(c == L'"')
+		if(!in_quote && iswspace(*i))
+			return String(i, cmd.end());
+		if(*i == L'"')
 			in_quote = in_quote ? false : true;
 	}
 
@@ -865,9 +848,6 @@ private:
 		_chdir;
 	bool
 		_verbose,
-		_internal,
-		_use_path,
-		_gui,
 		_wait,
 		_hide,
 		_maximize,
@@ -893,9 +873,6 @@ public:
 	const String &arg() const							{ return _arg; }
 	const String &chdir() const							{ return _chdir; }
 	bool verbose() const								{ return _verbose; }
-	bool internal() const								{ return _internal; }
-	bool use_path() const								{ return _use_path; }
-	bool gui() const									{ return _gui; }
 	bool wait() const									{ return _wait; }
 	bool hide() const									{ return _hide; }
 	bool maximize() const								{ return _maximize; }
@@ -909,9 +886,6 @@ public:
 	const String &arg(const String &s);
 	const String &chdir(const String &s);
 	bool verbose(bool v)								{ return _verbose = v; }
-	bool internal(bool v)								{ return _internal = v; }
-	bool use_path(bool v)								{ return _use_path = v; }
-	bool gui(bool v)									{ return _gui = v; }
 	bool wait(bool v)									{ return _wait = v; }
 	bool hide(bool v)									{ return _hide = v; }
 	bool maximize(bool v)								{ return _maximize = v; }
@@ -931,9 +905,6 @@ ExecuteInfo::ExecuteInfo()
 	_arg			= "${ARG}";
 	_chdir			= "";
 	_verbose		= false;
-	_internal		= false;
-	_use_path		= false;
-	_gui			= false;
 	_wait			= false;
 	_hide			= false;
 	_maximize		= false;
@@ -1126,12 +1097,7 @@ sint ExecuteInfo::create_process(const String &cmd)
 	sint
 		r = 0;
 
-	if(internal()){
-		cl += get_shell_name().doublequote() + " /c" + cmd;
-	}else{
-		cl += cmd.doublequote();
-	}
-
+	cl += cmd.doublequote();
 	arg = expand(_arg);
 	if(arg.size() > 0 && !iswspace(arg[0]))
 		cl.append(1,L' '); // 空白がないとコマンド名とくっついてしまうのでスペースを補う
@@ -1154,7 +1120,9 @@ sint ExecuteInfo::create_process(const String &cmd)
 		si.dwFlags |= STARTF_USESHOWWINDOW;
 	}
 
-// hide()
+	if(hide()){
+未完成
+	}
 
 	verbose_out("create process: " + cl);
 
@@ -1167,13 +1135,13 @@ sint ExecuteInfo::create_process(const String &cmd)
 	}
 
 	CloseHandle(pi.hThread);
-	if(gui() && !wait()){
-		CloseHandle(pi.hProcess);
-	}else{
+	if(wait()){
 		WaitForSingleObject(pi.hProcess, INFINITE);
 		GetExitCodeProcess(pi.hProcess, &ExitCode);
 		CloseHandle(pi.hProcess);
 		r = ExitCode;
+	}else{
+		CloseHandle(pi.hProcess);
 	}
 
 	return r;
@@ -1208,22 +1176,8 @@ sint ExecuteInfo::execute()
 
 	selfname = expand_value("MY_EXENAME").to_upper();
 	for(Strings::const_iterator i = exs().begin() ; i != exs().end() ; ++i){
-		found = false;
 		cmd = expand(*i);
-
-		if(internal()){
-			verbose_out("executable: " + cmd + " (internal)");
-			found = true;
-		}else if(use_path()){
-			found = search_path(cmd, selfname);
-		}else if(cmd.to_upper() == selfname){
-			verbose_out("unexecutable myself: " + cmd);
-		}else if(file_is_executable(cmd)){
-			verbose_out("executable: " + cmd);
-			found = true;
-		}else{
-			verbose_out("unexecutable: " + cmd);
-		}
+		found = search_path(cmd, selfname);
 
 		if(found){
 			target(cmd);
@@ -1246,16 +1200,11 @@ sint ExecuteInfo::execute()
 
 
 	if(!done){
-#if defined(__CONSOLE__) || 1
-		rcode = 1;
 		putcerr("'" + system_escape(expand_value("MY_BASENAME")) +
 				"' is not recognized as an internal or external command,\n"
 				"operable program or batch file.");
-#else
-		// 存在し得ないコマンド名をcmd.exeに与えて、エラーメッセージを出させる
-		rcode = system(system_escape(ev("MY_BASENAME")) + "\"\b");
-#endif
 		error = true;
+		rcode = 1;
 		return 1;
 	}
 
